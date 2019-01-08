@@ -84,8 +84,10 @@ add_totals_row <- function(data_tbl) {
   totals <- vapply(X = data_tbl[, 2:ncol(data_tbl)],
                    FUN = sum, na.rm = TRUE,
                    FUN.VALUE = numeric(1))
-  totals_row <- as_data_frame(
-    matrix(c("Totals", totals), nrow = 1, byrow = TRUE)
+  totals_row <- as_tibble(
+    as.data.frame(
+      matrix(c("Totals", totals), nrow = 1, byrow = TRUE)
+    )
   )
   names(totals_row) <- names(data_tbl)
   ## Attach totals row
@@ -107,8 +109,10 @@ add_proportions_row <- function(data_tbl) {
   }
   proportions <- vapply(X = data_tbl[1:(nrow(data_tbl)-1), 2:ncol(data_tbl)],
                         FUN = get_proportion, FUN.VALUE = numeric(1))
-  proportions_row <- as_data_frame(
-    matrix(c("Proportions", proportions), nrow = 1, byrow = TRUE)
+  proportions_row <- as_tibble(
+    as.data.frame(
+      matrix(c("Proportions", proportions), nrow = 1, byrow = TRUE)
+    )
   )
   names(proportions_row) <- names(data_tbl)
   ## Attach proportions row

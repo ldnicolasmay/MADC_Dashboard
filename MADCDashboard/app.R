@@ -2,7 +2,7 @@
 
 # # # # #
 # Copy all files to R Shiny server ----
-# scp ~/"Box Sync"/Documents/MADC_Dashboard/MADCDashboard/* 
+# scp ~/"Box Sync"/Documents/MADC_Dashboard/MADCDashboard/*.R 
 #   ldmay@rshiny.umms.med.umich.edu:~/ShinyApps/MADCDashboard/
 
 # # # # #

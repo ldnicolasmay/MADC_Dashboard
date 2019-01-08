@@ -34,7 +34,7 @@ data_plots <- data %>%
 
 ## Start with a `units` field (for cumsum counting)
 data_plots <- bind_cols(data_plots,
-                        data_frame(units = rep(1, nrow(data_plots))))
+                        tibble(units = rep(1, nrow(data_plots))))
 
 ## Create `total_cum_sum` field
 data_plots <- data_plots %>% 
