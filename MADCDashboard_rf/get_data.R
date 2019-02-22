@@ -5,15 +5,15 @@
 # Simplifies local-testing v. server-deployed execution of this script
 args <- commandArgs(trailingOnly = TRUE)
 
-deployed <- logical(length = 1L)
+DEPLOYED <- logical(length = 1L)
 
 if (length(args) != 1) {
   stop(paste0("\nSupply an argument of either `local` or `server`\n",
               "after executing `get_mindset_data.R`.\n", call.=TRUE))
 } else if (args[1] == "local") {
-  deployed <- FALSE
+  DEPLOYED <- FALSE
 } else if (args[1] == "server") {
-  deployed <- TRUE
+  DEPLOYED <- TRUE
 }
 
 
@@ -22,7 +22,7 @@ library(dplyr)
 library(stringr)
 
 # USEFUL GLOBALS & FUNCTIONS ----
-if (deployed) {
+if (DEPLOYED) {
   path_to_app <- # Michigan Medicine R Shiny server
     "~/ShinyApps/MADCDashboard/" 
 } else {
@@ -31,7 +31,7 @@ if (deployed) {
 }
 source(paste0(path_to_app, "config_new.R"), local = TRUE)
 source(paste0(path_to_app, "helpers.R"), local = TRUE)
-source(paste0(path_to_app, "helper_fxns_get_data.R"), local = TRUE)
+# source(paste0(path_to_app, "helper_fxns_get_data.R"), local = TRUE)
 
 
 
@@ -42,13 +42,19 @@ source(paste0(path_to_app, "helper_fxns_get_data.R"), local = TRUE)
 # __ UDS 3 ----
 
 # Header data
-fields_u3_head_raw <-
+fields_u3_hd_raw <-
   c(
     'ptid'           # partic. ID
     ,'form_date'     # visit date
   )
+# Form A1 Demographics
+fields_u3_a1_raw <-
+  c(
+    "sex"            # sex
+    # , "race"         # race not available for old cohort; no A1 fields!
+  ) %>% c(., paste0("fu_", .), paste0("tele_", .))
 # Form D1 Diagnosis data (IVP, FVP, TVP)
-fields_u3_dx_raw <-
+fields_u3_d1_raw <-
   c(
     'normcog'        # Dx -- NL
     , 'mciamem'      # Dx -- aMCI
@@ -70,7 +76,7 @@ fields_u3_dx_raw <-
     , 'ftldnoif'     # Dx -- FTD
   ) %>% c(., paste0("fu_", .), paste0("tele_", .))
 # Form D2 Comorbid condition data (IVP, FVP, TVP)
-fields_u3_condx_raw <-
+fields_u3_d2_raw <-
   c(
     'cancer'         # Condx -- Cancer
     , 'diabet'       # Condx -- Diabetes
@@ -84,12 +90,14 @@ fields_u3_condx_raw <-
     , 'hyposom'      # Condx -- Hyposomnia / insomnia
   ) %>% c(., paste0("fu_", .), paste0("tele_", .))
 # Combine and collapse `fields_u3_*_raw` vectors
-fields_u3 <- c(fields_u3_head_raw
-               , fields_u3_dx_raw
-               , fields_u3_condx_raw) %>% paste(collapse = ",")
-rm(fields_u3_head_raw)
-rm(fields_u3_dx_raw)
-rm(fields_u3_condx_raw)
+fields_u3 <- c(fields_u3_hd_raw
+               , fields_u3_a1_raw
+               , fields_u3_d1_raw
+               , fields_u3_d2_raw) %>% paste(collapse = ",")
+rm(fields_u3_hd_raw)
+rm(fields_u3_a1_raw)
+rm(fields_u3_d1_raw)
+rm(fields_u3_d2_raw)
 
 # __ MiNDSet Registry ----
 
@@ -102,8 +110,7 @@ fields_ms_head_raw <-
 # Demographic data
 fields_ms_dem_raw <-
   c(
-    'race_value'           # demo
-    , 'sex_value'          # demo
+    "race_value"           # demo
     , 'county'             # demo
     , 'zip_code'           # demo
   )
@@ -214,6 +221,8 @@ df_ms <- df_ms %>%
   filter(!is.na(exam_date)) %>% 
   # remove non UM ID records
   filter(str_detect(subject_id, pattern = "^UM\\d{8}$")) %>% 
+  # rename `race_value` field to `race`
+  rename(race = race_value) %>% 
   # keep only distinct / non-duplicate rows
   distinct(subject_id, exam_date, .keep_all = TRUE)
 
@@ -224,6 +233,14 @@ df_ms <- df_ms %>%
 df_u3 <- df_u3 %>% 
   # coalesce IVP / FVP / TVP columns
   coalesce_ift_cols() %>% 
+  # convert `sex` and `race` fields from int to string
+  mutate(
+    sex = case_when(
+      sex == 1 ~ "Male",
+      sex == 2 ~ "Female",
+      TRUE ~ NA_character_
+    )
+  ) %>% 
   # simplify UDS 3 dx
   mutate(uds_dx = dplyr::case_when(
     # Initial visits
@@ -238,7 +255,8 @@ df_u3 <- df_u3 %>%
     ftldmo == 1   & ftldmoif == 1   ~ "FTD",
     ftldnos == 1  & ftldnoif == 1   ~ "FTD",
     TRUE                            ~ "Other"
-  )) %>% 
+  )) %>%
+  calculate_visit_num(ptid, form_date) %>% 
   select(
     -normcog,                                # NL
     -mciamem, -mciaplus, -mcinon1, -mcinon2, # MCI
@@ -249,10 +267,12 @@ df_u3 <- df_u3 %>%
     -ftldmo, -ftldmoif, -ftldnos, -ftldnoif  # FTD
   ) %>% 
   readr::type_convert(
-    col_types = readr::cols(.default = readr::col_integer(),
-                            ptid = readr::col_character(),
+    col_types = readr::cols(.default  = readr::col_integer(),
+                            ptid      = readr::col_character(),
                             form_date = readr::col_date(),
-                            uds_dx = readr::col_character())) %>% 
+                            uds_dx    = readr::col_character(),
+                            sex       = readr::col_character(),
+                            race      = readr::col_character())) %>% 
   mutate_at(vars(cancer:hyposom),
             function(x) { 
               case_when(
@@ -285,7 +305,6 @@ df_ms <- df_ms %>%
 
 
 # _ Join Data ----
-
 df_u3_ms <- left_join(x = df_u3, 
                       y = df_ms, 
                       by = c("ptid" = "subject_id", 
@@ -294,6 +313,7 @@ df_u3_ms <- left_join(x = df_u3,
 # _ Hash `ptid` field ----
 df_u3_ms <- df_u3_ms %>% 
   mutate(ptid = openssl::sha256(ptid))
+
 
 # _ Write Data ----
 saveRDS(df_u3_ms, paste0(path_to_app, "rds/df_u3_ms.Rds"))

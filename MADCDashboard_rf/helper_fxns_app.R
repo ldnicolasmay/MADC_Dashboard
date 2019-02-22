@@ -29,23 +29,23 @@ filter_group_tally <- function(df, ...) {
 }
 
 
-list_filter_group_tally <- function(df, groups) {
-  groups <- rlang::enquos(groups)
-  df %>% 
-    dplyr::group_by(!!!groups) %>% 
+vctr_filter_group_tally <- function(df, groups) {
+  groups <- syms(groups)
+  df %>%
+    dplyr::group_by(!!!groups) %>%
     dplyr::tally()
 }
-list_filter_group_tally(df, groups = list("sex_value", "race_value"))
+vctr_filter_group_tally(df, groups = c("b", "c"))
 
 
-df <- tibble::tibble(
-  a = 1:5,
-  b = c("a", "a", "b", "a", "b"),
-  c = c("c", "d", "c", "c", "d")
-)
-list("sex_value", "race_value")
-
-
+# df <- tibble::tibble(
+#   a = 1:5,
+#   b = c("a", "a", "b", "a", "b"),
+#   c = c("c", "d", "c", "c", "d")
+# )
+# list("race_value", "sex_value")
+# c("race_value", "sex_value")
+# cat(c("race_value", "sex_value"))
 
 
 

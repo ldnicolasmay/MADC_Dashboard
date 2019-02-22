@@ -276,7 +276,11 @@ calculate_visit_num <- function(df, id_field, date_field) {
 # n is the visit number
 # Use n = -Inf for the earliest visit
 # Use n = Inf for the latest visit
-get_visit_n <- function(df, id_field, date_field, n) {
+get_visit_n <- function(df, id_field, date_field, n = NULL) {
+  
+  # If n is null, return the df as is
+  if (is.null(n)) return(df)
+  
   # Capture what user passed as `id_field` and `date_field`
   enquo_id_field <- enquo(id_field)
   enquo_date_field <- enquo(date_field)

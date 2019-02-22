@@ -5,11 +5,54 @@
 library(shiny)
 library(shinydashboard)
 library(DT)
+library(dplyr)
+library(stringr)
+library(rlang)
+
+DEPLOYED <- FALSE
+# DEPLOYED <- TRUE
+
+if (DEPLOYED) {
+  path_to_app <- # Michigan Medicine R Shiny server
+    "~/ShinyApps/MADCDashboard/" 
+} else {
+  path_to_app <- # local
+    "~/Box Sync/Documents/MADC_Dashboard/MADCDashboard_rf/"
+}
+source(paste0(path_to_app, "helpers.R"), local = TRUE)
 
 DT_OPTIONS <- list(paging = FALSE,
-                   searching = FALSE,
-                   ordering = FALSE,
+                   searching = TRUE,
+                   ordering = TRUE,
                    info = FALSE)
+
+SUMMARY_TBL_GROUPS <-
+  list(
+    "UDS Dx"    = "uds_dx"
+    , "Race"    = "race"
+    , "Sex"     = "sex"
+    , "County"  = "county"
+    , "ZIP"     = "zip_code"
+    , "Blood"   = "blood_drawn"
+    , "Saliva"  = "sample_given"
+    , "MRI"     = "mri_completed"
+    , "Autopsy" = "consent_to_autopsy"
+    , "Visit #" = "visit_num"
+    , "Withdrawn/Completed" = "comp_withd"
+  )
+
+SUMMARY_TBL_VISITS <- 
+  list(
+    "Most Recent" = "most_recent"
+    , "1st" = "v1"
+    , "2nd" = "v2"
+    , "3rd" = "v3"
+    , "4th" = "v4"
+    , "5th" = "v5"
+    , "All" = "all"
+  )
+
+
 
 # Define UI for application that draws a histogram
 ui <- dashboardPage(
@@ -21,15 +64,15 @@ ui <- dashboardPage(
   dashboardSidebar(
     sidebarMenu(
       menuItem(text = "Summary", tabName = "summary",
-               icon = icon("table")),
-      menuItem(text = "Timelines", tabName = "timelines",
-               icon = icon("clock-o")),
-      menuItem(text = "Plots", tabName = "plots",
-               icon = icon("signal")),
-      menuItem(text = "Maps", tabName = "maps",
-               icon = icon("map")),
-      menuItem(text = "Conditions", tabName = "condx",
-               icon = icon("medkit"))
+               icon = icon("table"))
+      # , menuItem(text = "Timelines", tabName = "timelines",
+      #          icon = icon("clock-o"))
+      # , menuItem(text = "Plots", tabName = "plots",
+      #          icon = icon("signal"))
+      # , menuItem(text = "Maps", tabName = "maps",
+      #          icon = icon("map"))
+      # , menuItem(text = "Conditions", tabName = "condx",
+      #          icon = icon("medkit"))
     )
   ),
   
@@ -42,30 +85,52 @@ ui <- dashboardPage(
         h2("Summary Table"),
         fluidRow(
           box(width = 12,
-              h3("Groups"),
+              # h3("Visit Number"),
+              radioButtons(
+                inputId = "visit_filter",
+                label = "Participant Visit(s)",
+                inline = TRUE,
+                choices = SUMMARY_TBL_VISITS,
+                selected = "most_recent"))),
+        fluidRow(
+          box(width = 12,
+              # h3("Groups"),
               checkboxGroupInput(
                 inputId = "field_groups",
-                label = "Field Groups",
+                label = "Group By",
                 inline = TRUE,
-                choices = list("race_value" = "race_value",
-                               "sex_value"  = "sex_value")
+                choices = SUMMARY_TBL_GROUPS))),
+        fluidRow(
+          box(width = 12,
+              # h3("Filters"),
+              textInput(
+                inputId = "field_filters",
+                label = "R Filters",
+                placeholder = 
+                  paste("Enter valid R conditional expression:",
+                        "uds_dx == \"AD\" & sex_value == \"Female\"")
               )
           )
         ),
         fluidRow(
           box(width = 12,
-              verbatimTextOutput("blah"))
-        ),
-        fluidRow(
-          box(width = 12,
-              h3("Summary"),
+              # h3("Summary"),
               dataTableOutput("summary")
           )
         )
+        # , box(width = 12,
+        #       verbatimTextOutput(outputId = "filters"))
+        # , box(width = 12,
+        #       verbatimTextOutput(outputId = "filters_len"))
+        # , box(width = 12,
+        #       verbatimTextOutput(outputId = "filters_nchar"))
+        # , box(width = 12,
+        #       verbatimTextOutput(outputId = "filters_test"))
       )
     )
   )
 )
+
 
 # Define server logic required to draw a histogram
 server <- function(input, output, session) {
@@ -86,13 +151,60 @@ server <- function(input, output, session) {
                        readFunc = readRDS,
                        session = NULL)
   
-  select_groups <- reactive({ input$field_groups })
-
+  # _ Summary Table
+  
+  # Reactive radio button switch
+  visit_switch <- reactive({
+    switch(input$visit_filter,
+           most_recent = Inf,
+           v1  = 1L,
+           v2  = 2L,
+           v3  = 3L,
+           v4  = 4L,
+           v5  = 5L,
+           all = NULL)
+  })
+  
+  field_filters <- reactive({
+    str_trim(unlist(str_split(input$field_filters, ",")))
+  })
+  
+  # Summary Table try-catch
+  summary_table <- reactive({
+    # Prevent invalid "Field Filters" from showing nasty errors in app
+    ret_df <- tryCatch(
+      {
+        # message("try")
+        df_u3_ms() %>%
+          filter(!!!parse_exprs(field_filters())) %>%
+          get_visit_n(ptid, form_date, visit_switch()) %>%
+          group_by(!!!syms(input$field_groups)) %>%
+          tally() %>%
+          datatable(options = DT_OPTIONS)
+      },
+      error=function(cond) {
+        # message("error")
+        df_u3_ms() %>%
+          # filter(!!!parse_exprs(field_filters())) %>%
+          get_visit_n(ptid, form_date, visit_switch()) %>%
+          group_by(!!!syms(input$field_groups)) %>%
+          tally() %>% 
+          datatable(options = DT_OPTIONS)
+      }
+    )
+    ret_df
+  })
+  
+  # Summary Table output
   output$summary <-
     renderDataTable({
-      datatable(df_u3_ms(), options = DT_OPTIONS)
+      summary_table()
     })
-  output$blah <- renderText(select_groups())
+  
+  # output$filters <- renderPrint(input$field_filters)
+  # output$filters_len <- renderPrint(length(input$field_filters))
+  # output$filters_nchar <- renderPrint(nchar(input$field_fielters))
+  # output$filters_test <- renderPrint(input$field_filters == "")
 }
 
 # Run the application 
