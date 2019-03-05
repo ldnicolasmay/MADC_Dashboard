@@ -6,7 +6,9 @@ library(shiny)
 library(shinydashboard)
 library(DT)
 library(dplyr)
+library(tidyr)
 library(stringr)
+library(purrr)
 library(rlang)
 library(ggplot2)
 library(plotly)
@@ -24,6 +26,7 @@ if (DEPLOYED) {
 }
 source(paste0(path_to_app, "helpers.R"), local = TRUE)
 source(paste0(path_to_app, "helpers_app.R"), local = TRUE)
+source(paste0(path_to_app, "helpers_plots.R"), local = TRUE)
 
 DT_OPTIONS <- list(paging = FALSE,
                    searching = TRUE,
@@ -76,17 +79,16 @@ ui <- dashboardPage(
                  icon = icon("clock-o"))
       # , menuItem(text = "Plots", tabName = "plots",
       #          icon = icon("signal"))
-      # , menuItem(text = "Maps", tabName = "maps",
-      #          icon = icon("map"))
-      # , menuItem(text = "Conditions", tabName = "condx",
-      #          icon = icon("medkit"))
+      , menuItem(text = "Conditions", tabName = "condx",
+               icon = icon("medkit"))
     )
   ),
   
   # Body ----
   dashboardBody(
-    # _ Tab container ----
+    # Tab container ----
     tabItems(
+      # tabItem for "summary" ----
       tabItem(
         tabName = "summary",
         h2("Summary Table"),
@@ -115,7 +117,9 @@ ui <- dashboardPage(
                 label = "R Filters",
                 placeholder = 
                   paste("Enter valid R conditional expression:",
-                        "uds_dx == \"AD\" & sex_value == \"Female\"")
+                        paste0("uds_dx_der <= \"MCI\" & ",
+                               "!is.na(uds_prim_etio)",
+                               "sex == \"Female\" & "))
               )
           )
         ),
@@ -125,8 +129,9 @@ ui <- dashboardPage(
               dataTableOutput("summary")
           )
         )
-      ), # end tabItem "summary
-      tabItem(
+      ) # end tabItem "summary
+      # tabItem for "timelines" ----
+      , tabItem(
         tabName = "timelines",
         h2("Timelines"),
         fluidRow(
@@ -156,12 +161,68 @@ ui <- dashboardPage(
               plotOutput(outputId = "plot_timeline_fincons_fdbk_hist"),
               dataTableOutput(outputId = "table_timeline_fincons_fdbk"))
         ),
-        fluidRow(hr()),
         fluidRow(
           box(width = 12, h4("Timeline Comparison"),
               plotOutput(outputId = "plot_timelines"))
         )
       ) # end tabItem "timelines"
+      # tabItem for "condx" ----
+      , tabItem(
+        tabName = "condx",
+        h2("Conditions by Diagnosis"),
+        fluidRow(
+          box(
+            checkboxGroupInput(
+              inputId = "condxCheckboxesFast",
+              label = h3("Conditions"),
+              inline = TRUE,
+              choices = list("Cancer" = "cancer",
+                             "Diabetes" = "diabet",
+                             "Myocardial infarction" = "myoinf",
+                             "Congestive heart failure" = "conghrt",
+                             "Hypertension" = "hypert",
+                             "Hypercholesterolemia" = "hypchol",
+                             "Arthritis" = "arth",
+                             "Sleep apnea" = "sleepap",
+                             "REM disorder" = "remdis",
+                             "Hyposomnia/Insomnia" = "hyposom")),
+            width = 12)
+        ),
+        # fluidRow(
+        #   box( verbatimTextOutput("select_condx_combn"))
+        #   ),
+        # fluidRow(
+        #   box( verbatimTextOutput("select_condx_combn_lst") )
+        # ),
+        fluidRow(
+          box( plotOutput(outputId = "select_condx_combn_pie"),
+               width = 12, title = h2("All Diagnoses"))
+        ),
+        fluidRow(
+          box( plotOutput(outputId = "select_condx_combn_pie_nl"),
+               width = 6, title = h2("NL")),
+          box( plotOutput(outputId = "select_condx_combn_pie_mci"),
+               width = 6, title = h2("MCI"))
+        )# ,
+        # fluidRow(
+        #   box( plotOutput(outputId = "select_condx_combn_pie_ad"),
+        #        width = 6, title = h2("AD")),
+        #   box( plotOutput(outputId = "select_condx_combn_pie_imp"),
+        #        width = 6, title = h2("Impaired, not MCI"))
+        # ),
+        # fluidRow(
+        #   box( plotOutput(outputId = "select_condx_combn_pie_ftd"),
+        #        width = 6, title = h2("FTD")),
+        #   box( plotOutput(outputId = "select_condx_combn_pie_lbd"),
+        #        width = 6, title = h2("LBD"))
+        # ),
+        # fluidRow(
+        #   box( plotOutput(outputId = "select_condx_combn_pie_oth"),
+        #        width = 6, title = h2("Other")),
+        #   box( plotOutput(outputId = "select_condx_combn_pie_pnd"),
+        #        width = 6, title = h2("Pending Consensus"))
+        # )
+      ) # end tabItem for Condx Fast
     )
   )
 )
@@ -217,7 +278,7 @@ server <- function(input, output, session) {
           tally() %>%
           datatable(options = DT_OPTIONS)
       },
-      error=function(cond) {
+      error = function(cond) {
         # message("error")
         df_u3_ms() %>%
           get_visit_n(ptid, form_date, visit_switch()) %>%
@@ -235,11 +296,17 @@ server <- function(input, output, session) {
       summary_table()
     })
   
-  # Timeline Plots ----
+  # Timeline Plots & Tables ----
   
   # Reactive to capture date range slider
   df_u3_ms_date_fltr <- reactive({
     df_u3_ms() %>% 
+      select(ptid, 
+             form_date,
+             dur_exam_scrd, 
+             dur_exam_dblscrd, 
+             dur_exam_cons, 
+             dur_fincons_fdbk) %>% 
       filter(input$date_slider[1] <= form_date,
              form_date <= input$date_slider[2])
   })
@@ -298,7 +365,7 @@ server <- function(input, output, session) {
       ggplot(data = ., aes(x = dur_exam_scrd)) +
       geom_histogram(binwidth = 1, center = 0.5,
                      color = "#000000", fill = "#3885B7") +
-      scale_x_continuous(name = "Days")
+      scale_x_continuous(limits = c(0, NA_integer_), name = "Days")
   })
   
   # Timeline plot: dur_exam_dblscrd
@@ -307,7 +374,7 @@ server <- function(input, output, session) {
       ggplot(data = ., aes(x = dur_exam_dblscrd)) +
       geom_histogram(binwidth = 1, center = 0.5,
                      color = "#000000", fill = "#3885B7") +
-      scale_x_continuous(name = "Days")
+      scale_x_continuous(limits = c(0, NA_integer_), name = "Days")
   })
   
   # Timeline plot: dur_exam_cons
@@ -317,7 +384,7 @@ server <- function(input, output, session) {
       ggplot(data = ., aes(x = dur_exam_cons)) +
       geom_histogram(binwidth = 1, center = 0.5,
                      color = "#000000", fill = "#3885B7") +
-      scale_x_continuous(name = "Days")
+      scale_x_continuous(limits = c(0, NA_integer_), name = "Days")
   })
   
   # Timeline plot: dur_exam_cons
@@ -327,15 +394,14 @@ server <- function(input, output, session) {
       ggplot(data = ., aes(x = dur_fincons_fdbk)) +
       geom_histogram(binwidth = 1, center = 0.5,
                      color = "#000000", fill = "#3885B7") +
-      scale_x_continuous(name = "Days")
+      scale_x_continuous(limits = c(0, NA_integer_), name = "Days")
   })
   
   # Timeline plot: all four dur_*
   output$plot_timelines <- renderPlot({
     df_u3_ms_date_fltr() %>% 
-      select(ptid, 
-             dur_exam_scrd, dur_exam_dblscrd, dur_exam_cons, dur_fincons_fdbk) %>% 
-      gather(-ptid, key = "duration", value = "Days") %>% 
+      select(-form_date) %>%
+      gather(-ptid, key = "duration", value = "Days") %>%
       filter(!is.na(Days)) %>% 
       mutate(duration = case_when(
         duration == "dur_exam_scrd"    ~ "1 Visit - Scored",
@@ -348,6 +414,80 @@ server <- function(input, output, session) {
       labs(fill = "") +
       theme(legend.position = "bottom")
   })
+  
+  # Condx Plots ----
+  data_condx <- reactive({
+    df_u3_ms() %>% 
+      filter(!is.na(uds_dx_der)) %>% 
+      select(ptid, uds_dx_der, condx_combn_name)
+  })
+  
+  select_condx <- reactive({ as.character(unlist(input$condxCheckboxesFast)) })
+  
+  # Build list with nCk select_condx condx using `combn()`
+  select_condx_combn <- reactive({
+    map(
+      0:length(select_condx()),
+      function(x) {
+        combn(select_condx(), x, simplify = TRUE)
+      })
+  })
+  
+  # Build container list for all condx / all dx
+  select_condx_combn_lst <- reactive({
+    select_condx_combn_vctr <- c()
+    select_condx_combn_vctr_rgx <- c()
+    
+    for (i in 1:length(select_condx_combn())) {
+      for (j in 1:ncol(select_condx_combn()[[i]])) {
+        col_name <- c(select_condx_combn()[[i]][, j])
+        select_condx_combn_vctr <- # display names of condx combn.s
+          c(select_condx_combn_vctr,
+            paste0(col_name, collapse = " + "))
+        select_condx_combn_vctr_rgx <- # find all selected condx
+          c(select_condx_combn_vctr_rgx,
+            paste0("(?=.*", col_name, ")", collapse = ""))
+      }
+    }
+    
+    return(list(select_condx_combn_vctr = select_condx_combn_vctr,
+                select_condx_combn_vctr_rgx = select_condx_combn_vctr_rgx))
+  })
+  
+  # # Output condx fast
+  # output$select_condx_combn <- renderPrint({
+  #   select_condx_combn()
+  # })
+  # output$select_condx_combn_lst <- renderPrint({
+  #   select_condx_combn_lst()
+  # })
+  
+  # Pie graphs
+  output$select_condx_combn_pie <- renderPlot({
+    pie_graph_fast(
+      data = data_condx(),
+      condx = select_condx(),
+      dx = NULL,
+      combn_vctr = select_condx_combn_lst()$select_condx_combn_vctr,
+      combn_vctr_rgx = select_condx_combn_lst()$select_condx_combn_vctr_rgx)
+  })
+  output$select_condx_combn_pie_nl <- renderPlot({
+    pie_graph_fast(
+      data = data_condx(),
+      condx = select_condx(),
+      dx = "NL",
+      combn_vctr = select_condx_combn_lst()$select_condx_combn_vctr,
+      combn_vctr_rgx = select_condx_combn_lst()$select_condx_combn_vctr_rgx)
+  })
+  output$select_condx_combn_pie_mci <- renderPlot({
+    pie_graph_fast(
+      data = data_condx(),
+      condx = select_condx(),
+      dx = "MCI",
+      combn_vctr = select_condx_combn_lst()$select_condx_combn_vctr,
+      combn_vctr_rgx = select_condx_combn_lst()$select_condx_combn_vctr_rgx)
+  })
+  
   
 }
 

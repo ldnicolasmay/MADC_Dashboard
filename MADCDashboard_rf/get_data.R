@@ -20,6 +20,7 @@ if (length(args) != 1) {
 # USEFUL LIBRARIES ----
 library(dplyr)
 library(stringr)
+library(tidyr)
 
 # USEFUL GLOBALS & FUNCTIONS ----
 if (DEPLOYED) {
@@ -31,8 +32,6 @@ if (DEPLOYED) {
 }
 source(paste0(path_to_app, "config_new.R"), local = TRUE)
 source(paste0(path_to_app, "helpers.R"), local = TRUE)
-# source(paste0(path_to_app, "helper_fxns_get_data.R"), local = TRUE)
-
 
 
 # GET DATA ----
@@ -210,7 +209,7 @@ rm(fields_ms_time_raw)
 
 # __ UDS 3
 
-# Retrieve JSON object
+# Retrieve JSON object ----
 json_u3 <- 
   RCurl::postForm(
     uri     = REDCAP_API_URI,
@@ -232,7 +231,7 @@ json_u3 <-
 # Convert JSON to tibble; convert "" values to NA
 df_u3 <- jsonlite::fromJSON(json_u3) %>% as_tibble() %>%  na_if("")
 
-# __ MiNDSet Registry
+# __ MiNDSet Registry ----
 
 # Retrieve JSON object
 json_ms <- 
@@ -263,15 +262,6 @@ df_ms <- jsonlite::fromJSON(json_ms) %>% as_tibble() %>% na_if("")
 # _ Clean Data ----
 
 # __ UDS 3 ----
-
-# # Get IDs of milestoned pts.
-# df_u3_mlst <- df_u3 %>% 
-#   # remove double data entry (DDE) records
-#   filter(str_detect(ptid, pattern = "^UM\\d{8}$")) %>% 
-#   filter(note_mlstn_type == 0) %>% 
-#   distinct(ptid) %>% 
-#   pull() %>% 
-#   sort()
 
 df_u3 <- df_u3 %>% 
   # deselect useless field(s)
@@ -433,18 +423,36 @@ df_u3 <- df_u3 %>%
                             note_mlstn_type = readr::col_character())) %>% 
   # ensure 0 or 1 integers fills conditions fields
   mutate_at(vars(cancer:hyposom),
-            function(x) { 
+            function(x) {
               case_when(
                 is.na(x) | x == 0L ~ 0L,
                 x > 0L ~ 1L,
-                TRUE ~ NA_integer_)}) %>% 
+                TRUE ~ NA_integer_)}) %>%
   # change note_mlstn_type field to "Withdrawn/Deceased" when == 0
   mutate(note_mlstn_type = case_when(
     note_mlstn_type == "0" ~ "Withdrawn/Deceased",
     TRUE ~ NA_character_
-  )) %>% 
+  )) %>%
   # rename `note_mlstn_type` to `milestone`
-  rename(milestone = note_mlstn_type)
+  rename(milestone = note_mlstn_type) 
+
+# Add concatenated cormbid conditions fields
+df_u3 <- df_u3 %>% 
+  # place field name in each comorbid cond field where there's a 1, else NA
+  mutate_at(.vars = vars(cancer:hyposom),
+            .funs = function(x) {
+              x_name <- as_string(ensym(x))
+              case_when(
+                x == 1L ~ x_name,
+                TRUE ~ NA_character_)}) %>% 
+  # unite the cormorbid conditions as a long string, separated by "_"
+  unite(col = "condx_combn_name", cancer:hyposom, sep = "_") %>% 
+  # Convert instances of "NA_", "_NA", "NA", or "__" to "" (empty string)
+  mutate(condx_combn_name = 
+           str_replace_all(string = condx_combn_name, 
+                           pattern = regex("_NA|NA_|NA|__", ignore_case = FALSE),
+                           replacement = ""))
+
 
 # __ MiNDSet Registry ----
 
