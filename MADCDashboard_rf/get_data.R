@@ -53,28 +53,83 @@ fields_u3_a1_raw <-
     "sex"            # sex
     # , "race"         # race not available for old cohort; no A1 fields!
   ) %>% c(., paste0("fu_", .), paste0("tele_", .))
-# Form D1 Diagnosis data (IVP, FVP, TVP)
+# Form D1 (IVP, FVP, TVP)
 fields_u3_d1_raw <-
   c(
-    'normcog'        # Dx -- NL
-    , 'mciamem'      # Dx -- aMCI
-    , 'mciaplus'     # Dx -- aMCI
-    , 'mcinon1'      # Dx -- naMCI
-    , 'mcinon2'      # Dx -- naMCI
-    , 'impnomci'     # Dx -- Cognitively impaired
-    , 'alzdis'       # Dx -- AD
-    , 'alzdisif'     # Dx -- AD
-    , 'lbdis'        # Dx -- LBD
-    , 'lbdif'        # Dx -- LBD
-    , 'psp'          # Dx -- FTD
-    , 'pspif'        # Dx -- FTD
-    , 'cort'         # Dx -- FTD
-    , 'cortif'       # Dx -- FTD
-    , 'ftldmo'       # Dx -- FTD
-    , 'ftldmoif'     # Dx -- FTD
-    , 'ftldnos'      # Dx -- FTD
-    , 'ftldnoif'     # Dx -- FTD
+    # Diagnosis
+    "normcog"    # NL
+    , "demented" # Demented
+    , "amndem"   # Amnestic multidomain dementia syndrome
+    , "pca"      # Posterior cortical atrophy syndrome
+    , "ppasyn"   # Primary progressive aphasia (PPA) syndrome
+    , "ftdsyn"   # Behavioral variant FTD (bvFTD) syndrome
+    , "lbdsyn"   # Lewy body dementia syndrome
+    , "namndem"  # Non-amnestic multidomain dementia syndrome
+    , "mciamem"  # Amnestic MCI, single domain (aMCI SD) 
+    , "mciaplus" # Amnestic MCI, multiple domains (aMCI MD)
+    , "mcinon1"  # Non-amnestic MCI, single domain (naMCI SD)
+    , "mcinon2"  # Non-amnestic MCI, multiple domains (naMCI MD)
+    , "impnomci" # Cognitively impaired, not MCI
+    # Etiology
+    , "alzdis"   # Alzheimer's disease
+    , "alzdisif" 
+    , "lbdis"    # Lewy body disease
+    , "lbdif" 
+    , "msa"      # Multiple system atrophy
+    , "msaif"
+    , "psp"      # Progressive supranuclear palsy (PSP)
+    , "pspif"
+    , "cort"     # Corticobasal degeneration (CBD)
+    , "cortif"
+    , "ftldmo"   # FTLD with motor neuron disease
+    , "ftldmoif"
+    , "ftldnos"  # FTLD NOS
+    , "ftldnoif"
+    , "cvd"      # Vascular Brain injury (clinical or imaging evidence)
+    , "cvdif" 
+    , "esstrem"  # Essential tremor
+    , "esstreif"
+    , "downs"    # Down syndrome
+    , "downsif"
+    , "hunt"     # Huntington's disease
+    , "huntif"
+    , "prion"    # Prion disease (CJD, other)
+    , "prionif"
+    , "brninj"   # Traumatic brain injury
+    , "brninjif"
+    , "hyceph"   # Normal-pressure hydrocephalus
+    , "hycephif"
+    , "epilep"   # Epilepsy
+    , "epilepif"
+    , "neop"     # CNS neoplasm
+    , "neopif" 
+    , "hiv"      # Human immunodeficiency virus (HIV)
+    , "hivif"
+    # Condition
+    , "dep"      # Active depression
+    , "depif" 
+    , "bipoldx"  # Bipolar disorder
+    , "bipoldif"
+    , "schizop"  # Schizophrenia or other psychosis
+    , "schizoif"
+    , "anxiet"   # Anxiety disorder
+    , "anxietif"
+    , "delir"    # Delirium
+    , "delirif"
+    , "ptsddx"   # Post-traumatic stress disorder (PTSD)
+    , "ptsddxif"
+    , "othpsy"   # Other psychiatric disease
+    , "othpsyif"
+    , "alcdem"   # Cognitive impairment due to alcohol abuse
+    , "alcdemif"
+    , "impsub"   # Cognitive impairment due to other substance abuse
+    , "impsubif"
+    , "dysill"   # Cognitive impairment due to systemic disease/medical illness
+    , "dysillif"
+    , "meds"     # Cognitive impairment due to medications
+    , "medsif"
   ) %>% c(., paste0("fu_", .), paste0("tele_", .))
+
 # Form D2 Comorbid condition data (IVP, FVP, TVP)
 fields_u3_d2_raw <-
   c(
@@ -89,15 +144,22 @@ fields_u3_d2_raw <-
     , 'remdis'       # Condx -- REM sleep behavior disorder
     , 'hyposom'      # Condx -- Hyposomnia / insomnia
   ) %>% c(., paste0("fu_", .), paste0("tele_", .))
+# Form M1 Milestone data
+fields_u3_m1_raw <-
+  c(
+    "note_mlstn_type"
+  )
 # Combine and collapse `fields_u3_*_raw` vectors
 fields_u3 <- c(fields_u3_hd_raw
                , fields_u3_a1_raw
                , fields_u3_d1_raw
-               , fields_u3_d2_raw) %>% paste(collapse = ",")
+               , fields_u3_d2_raw
+               , fields_u3_m1_raw) %>% paste(collapse = ",")
 rm(fields_u3_hd_raw)
 rm(fields_u3_a1_raw)
 rm(fields_u3_d1_raw)
 rm(fields_u3_d2_raw)
+rm(fields_u3_m1_raw)
 
 # __ MiNDSet Registry ----
 
@@ -117,11 +179,11 @@ fields_ms_dem_raw <-
 # Research data
 fields_ms_res_raw <-
   c(
-    'comp_withd'           # research
-    , 'blood_drawn'        # research
+    'blood_drawn'          # research
     , 'consent_to_autopsy' # research
     , 'mri_completed'      # research
     , 'sample_given'       # research
+    # , 'comp_withd'         # research
   )
 # Timeline data
 fields_ms_time_raw <-
@@ -202,6 +264,15 @@ df_ms <- jsonlite::fromJSON(json_ms) %>% as_tibble() %>% na_if("")
 
 # __ UDS 3 ----
 
+# # Get IDs of milestoned pts.
+# df_u3_mlst <- df_u3 %>% 
+#   # remove double data entry (DDE) records
+#   filter(str_detect(ptid, pattern = "^UM\\d{8}$")) %>% 
+#   filter(note_mlstn_type == 0) %>% 
+#   distinct(ptid) %>% 
+#   pull() %>% 
+#   sort()
+
 df_u3 <- df_u3 %>% 
   # deselect useless field(s)
   select(-redcap_event_name) %>%
@@ -209,6 +280,8 @@ df_u3 <- df_u3 %>%
   filter(!is.na(form_date)) %>% 
   # remove double data entry (DDE) records
   filter(str_detect(ptid, pattern = "^UM\\d{8}$")) %>% 
+  # # remove milestoned pts.
+  # filter(!(ptid %in% df_u3_mlst)) %>% 
   # keep only distinct / non-duplicate rows
   distinct(ptid, form_date, .keep_all = TRUE)
 
@@ -241,67 +314,174 @@ df_u3 <- df_u3 %>%
       TRUE ~ NA_character_
     )
   ) %>% 
-  # simplify UDS 3 dx
-  mutate(uds_dx = dplyr::case_when(
-    # Initial visits
-    normcog == 1                    ~ "NL",
-    mciamem == 1  | mciaplus == 1 |
-      mcinon1 == 1  | mcinon2 == 1  ~ "MCI",
-    impnomci == 1                   ~ "Impaired, not MCI",
-    alzdis == 1   & alzdisif == 1   ~ "AD",
-    lbdis == 1    & lbdif == 1      ~ "LBD",
-    psp == 1      & pspif == 1      ~ "FTD",
-    cort == 1     & cortif == 1     ~ "FTD",
-    ftldmo == 1   & ftldmoif == 1   ~ "FTD",
-    ftldnos == 1  & ftldnoif == 1   ~ "FTD",
-    TRUE                            ~ "Other"
+  # simplify UDS diagnosis fields
+  mutate(uds_dx_der = case_when(
+    normcog  == 1 ~ "NL",
+    demented == 1 & amndem == 1 ~ 
+      "Amnestic multidomain dementia syndrome",
+    demented == 1 & pca == 1 ~
+      "Posterior cortical atrophy syndrome",
+    demented == 1 & ppasyn == 1 ~
+      "Primary progressive aphasia syndrome",
+    demented == 1 & ftdsyn == 1 ~
+      "Behavioral variant FTD syndrome",
+    demented == 1 & lbdsyn == 1 ~
+      "Lewy body dementia syndrome",
+    demented == 1 & namndem == 1 ~
+      "Non-amnestic multidomain dementia syndrome",
+    demented == 0 & mciamem  == 1 ~ "MCI",
+    demented == 0 & mciaplus == 1 ~ "MCI",
+    demented == 0 & mcinon1  == 1 ~ "MCI",
+    demented == 0 & mcinon2  == 1 ~ "MCI",
+    demented == 0 & impnomci == 1 ~ "Impaired not MCI",
+    TRUE ~ NA_character_
+  )) %>% 
+  # simplify UDS etiology fields
+  mutate(uds_prim_etio = case_when(
+    alzdis   == 1 & alzdisif == 1 ~ "AD",
+    lbdis    == 1 & lbdif    == 1 ~ "LBD",
+    msa      == 1 & msaif    == 1 ~ "MSA",
+    psp      == 1 & pspif    == 1 ~ "PSP",
+    cort     == 1 & cortif   == 1 ~ "CBD",
+    ftldmo   == 1 & ftldmoif == 1 ~ "FTLD with motor neuron disease",
+    ftldnos  == 1 & ftldnoif == 1 ~ "FTLD NOS",
+    cvd      == 1 & cvdif    == 1 ~ "Vascular brain injury",
+    esstrem  == 1 & esstreif == 1 ~ "Essential tremor",
+    downs    == 1 & downsif  == 1 ~ "Down syndrome",
+    hunt     == 1 & huntif   == 1 ~ "Huntington's disease",
+    prion    == 1 & prionif  == 1 ~ "Prion disease",
+    brninj   == 1 & brninjif == 1 ~ "Traumatic injury",
+    hyceph   == 1 & hycephif == 1 ~ "Normal-pressure hydrocephalus",
+    epilep   == 1 & epilepif == 1 ~ "Epilepsy",
+    neop     == 1 & neopif   == 1 ~ "CNS neoplasm",
+    hiv      == 1 & hivif    == 1 ~ "HIV",
+    TRUE ~ NA_character_
+  )) %>% 
+  # simplify UDS conidtion fields
+  mutate(uds_condition = case_when(
+    dep      == 1 & depif    == 1 ~ "Active depression",
+    bipoldx  == 1 & bipoldif == 1 ~ "Bipoloar disorder",
+    schizop  == 1 & schizoif == 1 ~ "Schizophrenia",
+    anxiet   == 1 & anxietif == 1 ~ "Anxiety disorder",
+    delir    == 1 & delirif  == 1 ~ "Delirium",
+    ptsddx   == 1 & ptsddxif == 1 ~ "PTSD",
+    othpsy   == 1 & othpsyif == 1 ~ "Other psychiatric disease",
+    alcdem   == 1 & alcdemif == 1 ~ 
+      "Cognitive impairment due to alcohol abuse",
+    impsub   == 1 & impsubif == 1 ~ 
+      "Cognitive impairment due to other substance abuse",
+    dysill   == 1 & dysillif == 1 ~
+      "Cognitive impairment due to systemic disease/medical illness",
+    meds     == 1 & medsif   == 1 ~
+      "Cognitive impairment due to medications",
+    TRUE ~ NA_character_
   )) %>%
+  # calculate visit numbers
   calculate_visit_num(ptid, form_date) %>% 
+  # deslect now-unnecessary fields
   select(
-    -normcog,                                # NL
-    -mciamem, -mciaplus, -mcinon1, -mcinon2, # MCI
-    -impnomci,                               # Impaired, not MCI
-    -alzdis, -alzdisif,                      # AD
-    -lbdis, -lbdif,                          # LBD
-    -psp, -pspif, -cort, -cortif,            # FTD
-    -ftldmo, -ftldmoif, -ftldnos, -ftldnoif  # FTD
-  ) %>% 
+    -normcog,
+    -demented,
+    -amndem, 
+    -pca, 
+    -ppasyn, 
+    -ftdsyn, 
+    -lbdsyn, 
+    -namndem,
+    -mciamem,  -mciaplus, 
+    -mcinon1,  -mcinon2,
+    -impnomci,
+    -alzdis,   -alzdisif,
+    -lbdis,    -lbdif,
+    -msa,      -msaif,
+    -psp,      -pspif, 
+    -cort,     -cortif,
+    -ftldmo,   -ftldmoif, 
+    -ftldnos,  -ftldnoif,
+    -cvd,      -cvdif,
+    -esstrem,  -esstreif,
+    -downs,    -downsif,
+    -hunt,     -huntif,
+    -prion,    -prionif,
+    -brninj,   -brninjif,
+    -hyceph,   -hycephif,
+    -epilep,   -epilepif,
+    -neop,     -neopif,
+    -hiv,      -hivif,
+    -dep,      -depif,
+    -bipoldx,  -bipoldif,
+    -schizop,  -schizoif,
+    -anxiet,   -anxietif,
+    -delir,    -delirif,
+    -ptsddx,   -ptsddxif,
+    -othpsy,   -othpsyif,
+    -alcdem,   -alcdemif,
+    -impsub,   -impsubif,
+    -dysill,   -dysillif,
+    -meds,     -medsif
+  ) %>%
+  # coerce fields to particular data types
   readr::type_convert(
-    col_types = readr::cols(.default  = readr::col_integer(),
-                            ptid      = readr::col_character(),
-                            form_date = readr::col_date(),
-                            uds_dx    = readr::col_character(),
-                            sex       = readr::col_character(),
-                            race      = readr::col_character())) %>% 
+    col_types = readr::cols(.default        = readr::col_integer(),
+                            ptid            = readr::col_character(),
+                            form_date       = readr::col_date(),
+                            uds_dx_der      = readr::col_character(),
+                            uds_prim_etio   = readr::col_character(),
+                            uds_condition   = readr::col_character(),
+                            sex             = readr::col_character(),
+                            race            = readr::col_character(),
+                            note_mlstn_type = readr::col_character())) %>% 
+  # ensure 0 or 1 integers fills conditions fields
   mutate_at(vars(cancer:hyposom),
             function(x) { 
               case_when(
                 is.na(x) | x == 0L ~ 0L,
                 x > 0L ~ 1L,
-                TRUE ~ NA_integer_)})
+                TRUE ~ NA_integer_)}) %>% 
+  # change note_mlstn_type field to "Withdrawn/Deceased" when == 0
+  mutate(note_mlstn_type = case_when(
+    note_mlstn_type == "0" ~ "Withdrawn/Deceased",
+    TRUE ~ NA_character_
+  )) %>% 
+  # rename `note_mlstn_type` to `milestone`
+  rename(milestone = note_mlstn_type)
 
 # __ MiNDSet Registry ----
 
 df_ms <- df_ms %>% 
+  # coerce fields to particular data types
   readr::type_convert(
-    col_types = readr::cols(.default = readr::col_character(),
-                            exam_date = readr::col_date(),
-                            scored = readr::col_date(),
-                            dbl_scored = readr::col_date(),
-                            consensus_date = readr::col_date(),
+    col_types = readr::cols(.default         = readr::col_character(),
+                            exam_date        = readr::col_date(),
+                            scored           = readr::col_date(),
+                            dbl_scored       = readr::col_date(),
+                            consensus_date   = readr::col_date(),
                             second_consensus = readr::col_date(),
-                            fb_date = readr::col_date())
+                            fb_date          = readr::col_date())
   ) %>% 
+  # clean up messy labelled fields
   mutate(zip_code = str_sub(zip_code, 1, 5),
          blood_drawn = str_replace(blood_drawn, "\\d{1,}\\. ", ""),
          sample_given = str_replace(sample_given, "\\d{1,} ", ""),
-         comp_withd = case_when(
-           comp_withd == "Y" ~ "Yes",
-           comp_withd == "N" ~ "No",
-           TRUE ~ NA_character_
-         ),
-         mri_completed = str_replace(mri_completed, "\\d{1,}\\. ", ""))
-
+         # comp_withd = case_when(
+         #   comp_withd == "Y" ~ "Yes",
+         #   comp_withd == "N" ~ "No",
+         #   TRUE ~ NA_character_
+         # ),
+         mri_completed = str_replace(mri_completed, "\\d{1,}\\. ", "")) %>% 
+  # add duration columns
+  mutate(dur_exam_scrd =        # days duration: exam -> scored
+           lubridate::interval(exam_date, scored) /
+           lubridate::ddays(1),
+         dur_exam_dblscrd =     # days duration: exam -> double scored
+           lubridate::interval(exam_date, dbl_scored) /
+           lubridate::ddays(1),
+         dur_exam_cons =        # days duration: exam -> first consensus
+           lubridate::interval(exam_date, consensus_date) /
+           lubridate::ddays(1),
+         dur_fincons_fdbk =     # days duration: final consensus -> feedback
+           lubridate::interval(second_consensus, fb_date) /
+           lubridate::ddays(1))
 
 
 # _ Join Data ----
@@ -317,6 +497,24 @@ df_u3_ms <- df_u3_ms %>%
 
 # _ Write Data ----
 saveRDS(df_u3_ms, paste0(path_to_app, "rds/df_u3_ms.Rds"))
+
+# _ Remove objects
+# rm(df_ms)
+# rm(df_u3)
+# rm(df_u3_ms)
+rm(BOX_CLIENT_ID)
+rm(BOX_CLIENT_SECRET)
+rm(BOX_REDIRECT_URI)
+# rm(df_u3_mlst)
+# rm(json_ms)
+# rm(json_u3)
+# rm(path_to_app)
+# rm(REDCAP_API_TOKEN_MINDSET)
+rm(REDCAP_API_TOKEN_UDS2)
+# rm(REDCAP_API_TOKEN_UDS3a)
+# rm(REDCAP_API_TOKEN_UDS3n)
+# rm(REDCAP_API_URI)
+rm(REDCAP_DATA_REQUESTS_TOKEN)
 
 
 ###@    #==--  :  --==#    @##==---==##@##==---==##@    #==--  :  --==#    @###
