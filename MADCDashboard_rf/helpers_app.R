@@ -4,10 +4,10 @@
 
 # Load Libraries ----
 
-library(dplyr)
-library(rlang)
-library(purrr)
-library(DT)
+suppressMessages( library(dplyr) )
+suppressMessages( library(rlang) )
+suppressMessages( library(purrr) )
+suppressMessages( library(DT) )
 
 
 # Helper Functions ----

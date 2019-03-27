@@ -1,9 +1,9 @@
 # helpers.R
 
-library(dplyr)
-library(stringr)
-library(lubridate)
-library(rlang)
+suppressMessages( library(dplyr) )
+suppressMessages( library(stringr) )
+suppressMessages( library(lubridate) )
+suppressMessages( library(rlang) )
 
 # Useful helper functions used throughout MADC database specialist work
 

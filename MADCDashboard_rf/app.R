@@ -2,24 +2,24 @@
 
 # LOAD LIBRARIES ----
 
-library(shiny)
-library(shinydashboard)
-library(DT)
-library(dplyr)
-library(tidyr)
-library(stringr)
-library(purrr)
-library(rlang)
-library(ggplot2)
-library(plotly)
-library(lubridate)
+suppressMessages( library(shiny) )
+suppressMessages( library(shinydashboard) )
+suppressMessages( library(DT) )
+suppressMessages( library(dplyr) )
+suppressMessages( library(tidyr) )
+suppressMessages( library(stringr) )
+suppressMessages( library(purrr) )
+suppressMessages( library(rlang) )
+suppressMessages( library(ggplot2) )
+suppressMessages( library(plotly) )
+suppressMessages( library(lubridate) )
 
 DEPLOYED <- FALSE
 # DEPLOYED <- TRUE
 
 if (DEPLOYED) {
   path_to_app <- # Michigan Medicine R Shiny server
-    "~/ShinyApps/MADCDashboard/" 
+    "~/ShinyApps/MADCDashboard_rf/" 
 } else {
   path_to_app <- # local
     "~/Box Sync/Documents/MADC_Dashboard/MADCDashboard_rf/"
@@ -48,7 +48,6 @@ SUMMARY_TBL_GROUPS <-
     , "Autopsy"         = "consent_to_autopsy"
     , "Visit Num"       = "visit_num"
     , "Milestoned"      = "milestone"
-    # , "Withdrawn/Completed" = "comp_withd"
   )
 
 SUMMARY_TBL_VISITS <- 
@@ -77,8 +76,8 @@ ui <- dashboardPage(
                icon = icon("table"))
       , menuItem(text = "Timelines", tabName = "timelines",
                  icon = icon("clock-o"))
-      # , menuItem(text = "Plots", tabName = "plots",
-      #          icon = icon("signal"))
+      , menuItem(text = "Plots", tabName = "plots",
+               icon = icon("signal"))
       , menuItem(text = "Conditions", tabName = "condx",
                icon = icon("medkit"))
     )
@@ -94,7 +93,6 @@ ui <- dashboardPage(
         h2("Summary Table"),
         fluidRow(
           box(width = 12,
-              # h3("Visit Number"),
               radioButtons(
                 inputId = "visit_filter",
                 label = "Participant Visit(s)",
@@ -103,7 +101,6 @@ ui <- dashboardPage(
                 selected = "most_recent"))),
         fluidRow(
           box(width = 12,
-              # h3("Groups"),
               checkboxGroupInput(
                 inputId = "field_groups",
                 label = "Group By",
@@ -111,21 +108,17 @@ ui <- dashboardPage(
                 choices = SUMMARY_TBL_GROUPS))),
         fluidRow(
           box(width = 12,
-              # h3("Filters"),
               textInput(
                 inputId = "field_filters",
                 label = "R Filters",
                 placeholder = 
                   paste("Enter valid R conditional expression:",
-                        paste0("uds_dx_der <= \"MCI\" & ",
-                               "!is.na(uds_prim_etio)",
-                               "sex == \"Female\" & "))
+                        paste0("uds_dx_der == \"MCI\""))
               )
           )
         ),
         fluidRow(
           box(width = 12,
-              # h3("Summary"),
               dataTableOutput("summary")
           )
         )
@@ -166,6 +159,51 @@ ui <- dashboardPage(
               plotOutput(outputId = "plot_timelines"))
         )
       ) # end tabItem "timelines"
+      # tabItem for "plots" ----
+      , tabItem(
+        tabName = "plots",
+        h2("Cumulative Enrollments"),
+        fluidRow(
+          tabBox(
+            width = 12,
+            title = "Cumulative Enrollments",
+            id = "tabset_cumenroll",
+            height = "550px",
+            tabPanel(
+              title = "Total",
+              box(width = 12,
+                  plotOutput(outputId = "plot_cum_total"))
+            ),
+            tabPanel(
+              title = "Sex",
+              box(width = 12,
+                  plotOutput(outputId = "plot_cum_sex"))
+            ),
+            tabPanel(
+              title = "Race",
+              box(width = 12,
+                  plotOutput(outputId = "plot_cum_race"))
+            )
+          )
+        ),
+        fluidRow(
+          tabBox(
+            width = 12,
+            title = "Target Enrollment by Diagnosis",
+            id = "tabset_targenroll",
+            height = "550px",
+            tabPanel("Normal",
+                     box(width = 12,
+                         plotOutput(outputId = "plot_cum_dx_target_normal"))),
+            tabPanel("MCI",
+                     box(width = 12,
+                         plotOutput(outputId = "plot_cum_dx_target_mci"))),
+            tabPanel("LBD",
+                     box(width = 12,
+                         plotOutput(outputId = "plot_cum_dx_target_lbd")))
+          )
+        )
+      ) # end tabItem for "plots"
       # tabItem for "condx" ----
       , tabItem(
         tabName = "condx",
@@ -188,40 +226,29 @@ ui <- dashboardPage(
                              "Hyposomnia/Insomnia" = "hyposom")),
             width = 12)
         ),
+        # # # # #
         # fluidRow(
         #   box( verbatimTextOutput("select_condx_combn"))
         #   ),
         # fluidRow(
         #   box( verbatimTextOutput("select_condx_combn_lst") )
         # ),
+        # # # # #
         fluidRow(
           box( plotOutput(outputId = "select_condx_combn_pie"),
                width = 12, title = h2("All Diagnoses"))
         ),
         fluidRow(
-          box( plotOutput(outputId = "select_condx_combn_pie_nl"),
-               width = 6, title = h2("NL")),
           box( plotOutput(outputId = "select_condx_combn_pie_mci"),
-               width = 6, title = h2("MCI"))
-        )# ,
-        # fluidRow(
-        #   box( plotOutput(outputId = "select_condx_combn_pie_ad"),
-        #        width = 6, title = h2("AD")),
-        #   box( plotOutput(outputId = "select_condx_combn_pie_imp"),
-        #        width = 6, title = h2("Impaired, not MCI"))
-        # ),
-        # fluidRow(
-        #   box( plotOutput(outputId = "select_condx_combn_pie_ftd"),
-        #        width = 6, title = h2("FTD")),
-        #   box( plotOutput(outputId = "select_condx_combn_pie_lbd"),
-        #        width = 6, title = h2("LBD"))
-        # ),
-        # fluidRow(
-        #   box( plotOutput(outputId = "select_condx_combn_pie_oth"),
-        #        width = 6, title = h2("Other")),
-        #   box( plotOutput(outputId = "select_condx_combn_pie_pnd"),
-        #        width = 6, title = h2("Pending Consensus"))
-        # )
+               width = 6, title = h2("MCI")),
+          
+          box( plotOutput(outputId = "select_condx_combn_pie_normal"),
+               width = 6, title = h2("Normal"))
+        ),
+        fluidRow(
+          box( plotOutput(outputId = "select_condx_combn_pie_lbd"),
+               width = 6, title = h2("LBD"))
+        )
       ) # end tabItem for Condx Fast
     )
   )
@@ -244,6 +271,12 @@ server <- function(input, output, session) {
   df_u3_ms <-
     reactiveFileReader(intervalMillis = invalidation_time,
                        filePath = "rds/df_u3_ms.Rds",
+                       readFunc = readRDS,
+                       session = NULL)
+  
+  df_u3_ms_plot <-
+    reactiveFileReader(intervalMillis = invalidation_time,
+                       filePath = "rds/df_u3_ms_plot.Rds",
                        readFunc = readRDS,
                        session = NULL)
   
@@ -276,6 +309,7 @@ server <- function(input, output, session) {
           get_visit_n(ptid, form_date, visit_switch()) %>%
           group_by(!!!syms(input$field_groups)) %>%
           tally() %>%
+          mutate(prop = format(round(n / sum(.$n), 2), nsmall = 2)) %>% 
           datatable(options = DT_OPTIONS)
       },
       error = function(cond) {
@@ -284,6 +318,7 @@ server <- function(input, output, session) {
           get_visit_n(ptid, form_date, visit_switch()) %>%
           group_by(!!!syms(input$field_groups)) %>%
           tally() %>% 
+          mutate(prop = format(round(n / sum(.$n), 2), nsmall = 2)) %>% 
           datatable(options = DT_OPTIONS)
       }
     )
@@ -415,10 +450,63 @@ server <- function(input, output, session) {
       theme(legend.position = "bottom")
   })
   
+  # Cumulative Enrollment Plots ----
+  
+  # Cumulative enrollment total plot
+  output$plot_cum_total <- renderPlot({
+    cum_plot(df = df_u3_ms_plot(),
+             x = "form_date", y = "total_cumsum",
+             plot_title = "Total Participants Over Time",
+             start_date = as.Date("2017-03-01"),
+             end_date = as.Date("2022-03-01"))
+  })
+  
+  # Cumulative enrollment by sex plot
+  output$plot_cum_sex <- renderPlot({
+    cum_plot_single_grp(df = df_u3_ms_plot(),
+                        x = "form_date", y = "sex_cumsum",
+                        group_var = "sex",
+                        plot_title = "Participants Over Time by Sex",
+                        start_date = as.Date("2017-03-01"),
+                        end_date = as.Date("2022-03-01"))
+  })
+  
+  # Cumulative enrollment by race plot
+  output$plot_cum_race <- renderPlot({
+    cum_plot_single_grp(df = df_u3_ms_plot(),
+                        x = "form_date", y = "race_cumsum",
+                        group_var = "race",
+                        plot_title = "Participants Over Time by Race",
+                        start_date = as.Date("2017-03-01"),
+                        end_date = as.Date("2022-03-01"))
+  })
+  
+  # Cumulative enrollment by diagnosis vs. diagnosis targets
+  # Use `observe` + `lapply` to render all the target diagnosis plots
+  diagnosis_abbrevs <- c("Normal", "MCI", "LBD")
+  observe({
+    lapply(diagnosis_abbrevs, function(dx_abrv) {
+      output[[paste0("plot_cum_dx_target_", tolower(dx_abrv))]] <-
+        renderPlot({
+          cum_plot_dx_target_dx(df = df_u3_ms_plot(),
+                                x = "form_date", y = "uds_dx_der_cumsum",
+                                group_var = "uds_dx_der",
+                                dx = dx_abrv,
+                                dx_target = paste0(dx_abrv, " target"),
+                                plot_title = paste0(dx_abrv, " vs. ",
+                                                    dx_abrv, " Target"),
+                                start_date = as.Date("2017-03-01"),
+                                end_date = as.Date("2022-03-01"))
+        }) # end renderPlot
+    }) # end lapply
+  }) # end observe
+  
+  
   # Condx Plots ----
   data_condx <- reactive({
     df_u3_ms() %>% 
       filter(!is.na(uds_dx_der)) %>% 
+      get_visit_n(ptid, form_date, Inf) %>%
       select(ptid, uds_dx_der, condx_combn_name)
   })
   
@@ -471,11 +559,11 @@ server <- function(input, output, session) {
       combn_vctr = select_condx_combn_lst()$select_condx_combn_vctr,
       combn_vctr_rgx = select_condx_combn_lst()$select_condx_combn_vctr_rgx)
   })
-  output$select_condx_combn_pie_nl <- renderPlot({
+  output$select_condx_combn_pie_normal <- renderPlot({
     pie_graph_fast(
       data = data_condx(),
       condx = select_condx(),
-      dx = "NL",
+      dx = "Normal",
       combn_vctr = select_condx_combn_lst()$select_condx_combn_vctr,
       combn_vctr_rgx = select_condx_combn_lst()$select_condx_combn_vctr_rgx)
   })
@@ -487,7 +575,14 @@ server <- function(input, output, session) {
       combn_vctr = select_condx_combn_lst()$select_condx_combn_vctr,
       combn_vctr_rgx = select_condx_combn_lst()$select_condx_combn_vctr_rgx)
   })
-  
+  output$select_condx_combn_pie_lbd <- renderPlot({
+    pie_graph_fast(
+      data = data_condx(),
+      condx = select_condx(),
+      dx = "LBD",
+      combn_vctr = select_condx_combn_lst()$select_condx_combn_vctr,
+      combn_vctr_rgx = select_condx_combn_lst()$select_condx_combn_vctr_rgx)
+  })
   
 }
 

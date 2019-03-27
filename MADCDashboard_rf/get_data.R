@@ -1,5 +1,6 @@
 #!/usr/bin/env Rscript
 
+# get_data.R
 
 # HANDLE SCRIPT EXEC ARGS ----
 # Simplifies local-testing v. server-deployed execution of this script
@@ -8,8 +9,8 @@ args <- commandArgs(trailingOnly = TRUE)
 DEPLOYED <- logical(length = 1L)
 
 if (length(args) != 1) {
-  stop(paste0("\nSupply an argument of either `local` or `server`\n",
-              "after executing `get_mindset_data.R`.\n", call.=TRUE))
+  stop(paste0("\nSupply an argument of either `local` or `server` ",
+              "after executing `get_mindset_data.R`\n", call. = TRUE))
 } else if (args[1] == "local") {
   DEPLOYED <- FALSE
 } else if (args[1] == "server") {
@@ -18,14 +19,14 @@ if (length(args) != 1) {
 
 
 # USEFUL LIBRARIES ----
-library(dplyr)
-library(stringr)
-library(tidyr)
+suppressMessages( library(dplyr) )
+suppressMessages( library(stringr) )
+suppressMessages( library(tidyr) )
 
 # USEFUL GLOBALS & FUNCTIONS ----
 if (DEPLOYED) {
   path_to_app <- # Michigan Medicine R Shiny server
-    "~/ShinyApps/MADCDashboard/" 
+    "~/ShinyApps/MADCDashboard_rf/" 
 } else {
   path_to_app <- # local
     "~/Box Sync/Documents/MADC_Dashboard/MADCDashboard_rf/"
@@ -147,6 +148,9 @@ fields_u3_d2_raw <-
 fields_u3_m1_raw <-
   c(
     "note_mlstn_type"
+    , "protocol"
+    , "deceased"
+    , "discont"
   )
 # Combine and collapse `fields_u3_*_raw` vectors
 fields_u3 <- c(fields_u3_hd_raw
@@ -224,8 +228,8 @@ json_u3 <-
     exportSurveyFields     = 'false',
     exportDataAccessGroups = 'false',
     returnFormat           = 'json',
-    # .opts = list(ssl.verifypeer = TRUE, verbose = TRUE) # see note below*
-    .opts = list(ssl.verifypeer = FALSE, verbose = TRUE)
+    # .opts = list(ssl.verifypeer = TRUE, verbose = FALSE) # see note below*
+    .opts = list(ssl.verifypeer = FALSE, verbose = FALSE)
   ) %>% 
   str_replace_all(pattern = "\r\n", replacement = " ")
 # Convert JSON to tibble; convert "" values to NA
@@ -249,8 +253,8 @@ json_ms <-
     exportDataAccessGroups = 'false',
     returnFormat           = 'json',
     filterLogic            = '([exam_date] >= "2017-03-28")',
-    # .opts = list(ssl.verifypeer = TRUE, verbose = TRUE) # see note below*
-    .opts = list(ssl.verifypeer = FALSE, verbose = TRUE)
+    # .opts = list(ssl.verifypeer = TRUE, verbose = FALSE) # see note below*
+    .opts = list(ssl.verifypeer = FALSE, verbose = FALSE)
   ) %>% 
   str_replace_all(pattern = "\r\n", replacement = " ")
 # Convert JSON to tibble; convert "" values to NA
@@ -306,19 +310,25 @@ df_u3 <- df_u3 %>%
   ) %>% 
   # simplify UDS diagnosis fields
   mutate(uds_dx_der = case_when(
-    normcog  == 1 ~ "NL",
+    normcog  == 1 ~ "Normal",
     demented == 1 & amndem == 1 ~ 
       "Amnestic multidomain dementia syndrome",
+      # "Dementia",
     demented == 1 & pca == 1 ~
       "Posterior cortical atrophy syndrome",
+      # "Dementia",
     demented == 1 & ppasyn == 1 ~
       "Primary progressive aphasia syndrome",
+      # "Dementia",
     demented == 1 & ftdsyn == 1 ~
       "Behavioral variant FTD syndrome",
+      # "Dementia",
     demented == 1 & lbdsyn == 1 ~
       "Lewy body dementia syndrome",
+      # "LBD",
     demented == 1 & namndem == 1 ~
       "Non-amnestic multidomain dementia syndrome",
+      # "Dementia",
     demented == 0 & mciamem  == 1 ~ "MCI",
     demented == 0 & mciaplus == 1 ~ "MCI",
     demented == 0 & mcinon1  == 1 ~ "MCI",
@@ -428,15 +438,17 @@ df_u3 <- df_u3 %>%
                 is.na(x) | x == 0L ~ 0L,
                 x > 0L ~ 1L,
                 TRUE ~ NA_integer_)}) %>%
-  # change note_mlstn_type field to "Withdrawn/Deceased" when == 0
-  mutate(note_mlstn_type = case_when(
-    note_mlstn_type == "0" ~ "Withdrawn/Deceased",
+  # create milestone field for deceased, dropped, or telephone FU records
+  mutate(milestone = case_when(
+    note_mlstn_type == 0L & deceased == 1L ~ "Deceased",
+    note_mlstn_type == 0L & discont  == 1L ~ "Dropped",
+    note_mlstn_type == 1L & protocol == 1L ~ "Telephone follow-up",
     TRUE ~ NA_character_
   )) %>%
-  # rename `note_mlstn_type` to `milestone`
-  rename(milestone = note_mlstn_type) 
+  # drop `note_mlstn_type`, `deceased`, `discont`, `protocol`
+  select(-note_mlstn_type, -deceased, -discont, -protocol) 
 
-# Add concatenated cormbid conditions fields
+# Add concatenated comorbid conditions fields
 df_u3 <- df_u3 %>% 
   # place field name in each comorbid cond field where there's a 1, else NA
   mutate_at(.vars = vars(cancer:hyposom),
@@ -497,6 +509,24 @@ df_u3_ms <- left_join(x = df_u3,
                       y = df_ms, 
                       by = c("ptid" = "subject_id", 
                              "form_date" = "exam_date"))
+
+# # _ Mutate `simple_dx` fields
+# df_u3_ms <- df_u3_ms %>% 
+# # Collapse uds_dx_der + uds_prim_etio => simple_dx
+# mutate(simple_dx = case_when(
+#   uds_dx_der    == "NL"  ~ "NL",
+#   uds_prim_etio == "AD"  ~ "AD",
+#   uds_prim_etio == "LBD" ~ "LBD",
+#   uds_prim_etio == "FTLD NOS" | 
+#     uds_prim_etio == "FTLD with motor neuron disease" ~ "FTD",
+#   uds_dx_der == "MCI" & 
+#     (is.na(uds_prim_etio) |
+#        uds_prim_etio != "AD" |
+#        uds_prim_etio != "LBD" |
+#        uds_prim_etio != "FTLD NOS" |
+#        uds_prim_etio != "FTLD with motor neuron disease") ~ "MCI",
+#   TRUE ~ NA_character_
+# ))
 
 # _ Hash `ptid` field ----
 df_u3_ms <- df_u3_ms %>% 
