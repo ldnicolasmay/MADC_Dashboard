@@ -35,7 +35,8 @@ DT_OPTIONS <- list(paging = FALSE,
 
 SUMMARY_TBL_GROUPS <-
   list(
-    "UDS Dx"            = "uds_dx_der"
+    "MADC Dx"           = "madc_dx" 
+    , "UDS Dx"          = "uds_dx_der"
     , "UDS Prim Etio"   = "uds_prim_etio"
     , "UDS Condition"   = "uds_condition"
     , "Race"            = "race"
@@ -113,7 +114,8 @@ ui <- dashboardPage(
                 label = "R Filters",
                 placeholder = 
                   paste("Enter valid R conditional expression:",
-                        paste0("uds_dx_der == \"MCI\""))
+                        paste0("madc_dx == \"MCI\""))
+                        # paste0("uds_dx_der == \"MCI\""))
               )
           )
         ),
@@ -198,6 +200,9 @@ ui <- dashboardPage(
             tabPanel("MCI",
                      box(width = 12,
                          plotOutput(outputId = "plot_cum_dx_target_mci"))),
+            tabPanel("AD",
+                     box(width = 12,
+                         plotOutput(outputId = "plot_cum_dx_target_ad"))),
             tabPanel("LBD",
                      box(width = 12,
                          plotOutput(outputId = "plot_cum_dx_target_lbd")))
@@ -239,13 +244,14 @@ ui <- dashboardPage(
                width = 12, title = h2("All Diagnoses"))
         ),
         fluidRow(
-          box( plotOutput(outputId = "select_condx_combn_pie_mci"),
-               width = 6, title = h2("MCI")),
-          
           box( plotOutput(outputId = "select_condx_combn_pie_normal"),
-               width = 6, title = h2("Normal"))
+               width = 6, title = h2("Normal")),
+          box( plotOutput(outputId = "select_condx_combn_pie_mci"),
+               width = 6, title = h2("MCI"))
         ),
         fluidRow(
+          box( plotOutput(outputId = "select_condx_combn_pie_ad"),
+               width = 6, title = h2("AD")),
           box( plotOutput(outputId = "select_condx_combn_pie_lbd"),
                width = 6, title = h2("LBD"))
         )
@@ -305,11 +311,12 @@ server <- function(input, output, session) {
       {
         # message("try")
         df_u3_ms() %>%
-          filter(!!!parse_exprs(field_filters())) %>%
+          # filter(!!!parse_exprs(field_filters())) %>%
           get_visit_n(ptid, form_date, visit_switch()) %>%
           group_by(!!!syms(input$field_groups)) %>%
           tally() %>%
-          mutate(prop = format(round(n / sum(.$n), 2), nsmall = 2)) %>% 
+          mutate(prop = format(round(n / sum(.$n), 2), nsmall = 2)) %>%
+          filter(!!!parse_exprs(field_filters())) %>%
           datatable(options = DT_OPTIONS)
       },
       error = function(cond) {
@@ -483,14 +490,16 @@ server <- function(input, output, session) {
   
   # Cumulative enrollment by diagnosis vs. diagnosis targets
   # Use `observe` + `lapply` to render all the target diagnosis plots
-  diagnosis_abbrevs <- c("Normal", "MCI", "LBD")
+  diagnosis_abbrevs <- c("Normal", "MCI", "AD", "LBD")
   observe({
     lapply(diagnosis_abbrevs, function(dx_abrv) {
       output[[paste0("plot_cum_dx_target_", tolower(dx_abrv))]] <-
         renderPlot({
           cum_plot_dx_target_dx(df = df_u3_ms_plot(),
-                                x = "form_date", y = "uds_dx_der_cumsum",
-                                group_var = "uds_dx_der",
+                                x = "form_date", y = "madc_dx_cumsum",
+                                # x = "form_date", y = "uds_dx_der_cumsum",
+                                group_var = "madc_dx",
+                                # group_var = "uds_dx_der",
                                 dx = dx_abrv,
                                 dx_target = paste0(dx_abrv, " target"),
                                 plot_title = paste0(dx_abrv, " vs. ",
@@ -505,9 +514,11 @@ server <- function(input, output, session) {
   # Condx Plots ----
   data_condx <- reactive({
     df_u3_ms() %>% 
-      filter(!is.na(uds_dx_der)) %>% 
+      filter(!is.na(madc_dx)) %>% 
+      # filter(!is.na(uds_dx_der)) %>% 
       get_visit_n(ptid, form_date, Inf) %>%
-      select(ptid, uds_dx_der, condx_combn_name)
+      select(ptid, madc_dx, condx_combn_name)
+      # select(ptid, uds_dx_der, condx_combn_name)
   })
   
   select_condx <- reactive({ as.character(unlist(input$condxCheckboxesFast)) })
@@ -572,6 +583,14 @@ server <- function(input, output, session) {
       data = data_condx(),
       condx = select_condx(),
       dx = "MCI",
+      combn_vctr = select_condx_combn_lst()$select_condx_combn_vctr,
+      combn_vctr_rgx = select_condx_combn_lst()$select_condx_combn_vctr_rgx)
+  })
+  output$select_condx_combn_pie_ad <- renderPlot({
+    pie_graph_fast(
+      data = data_condx(),
+      condx = select_condx(),
+      dx = "AD",
       combn_vctr = select_condx_combn_lst()$select_condx_combn_vctr,
       combn_vctr_rgx = select_condx_combn_lst()$select_condx_combn_vctr_rgx)
   })

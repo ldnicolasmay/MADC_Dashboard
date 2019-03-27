@@ -29,7 +29,8 @@ pie_graph_fast <- function(data,
   select_condx_combn_rows <- list()
   
   if (!is.null(dx)) {
-    data_cp <- data[data$uds_dx_der == dx, ]
+    data_cp <- data[data$madc_dx == dx, ]
+    # data_cp <- data[data$uds_dx_der == dx, ]
   } else {
     data_cp <- data
   }
@@ -131,8 +132,10 @@ add_dx_target_rows <- function(df, dx, dx_target, annual_targets) {
   #                "MCI target", "Normal target", "LBD target",
   #                "AD target", "FTD target")
   # target_df$uds_dx <- readr::parse_factor(rep(dx_target, 6), levels = dx_levels)
-  target_df$uds_dx_der <- rep(dx_target, 6)
-  target_df$uds_dx_der_cumsum <- annual_targets
+  target_df$madc_dx <- rep(dx_target, 6)
+  # target_df$uds_dx_der <- rep(dx_target, 6)
+  target_df$madc_dx_cumsum <- annual_targets
+  # target_df$uds_dx_der_cumsum <- annual_targets
   # return the original `df` with `target_df` attached
   bind_rows(df, target_df)
 }
@@ -140,7 +143,8 @@ add_dx_target_rows <- function(df, dx, dx_target, annual_targets) {
 ## Fxn for cumulative plot (no groups)
 cum_plot <- function(df, x, y, plot_title, start_date, end_date) {
   df %>%
-    filter(!stringr::str_detect(uds_dx_der, "target")) %>%
+    filter(!stringr::str_detect(madc_dx, "target")) %>%
+    # filter(!stringr::str_detect(uds_dx_der, "target")) %>%
     ggplot(data = ., aes_string(x = x, y = y)) +
     geom_line(size = CUSTOM_LINE_SIZE) +
     TODAY_LINE +
@@ -160,7 +164,8 @@ cum_plot <- function(df, x, y, plot_title, start_date, end_date) {
 cum_plot_single_grp <- function(df, x, y, group_var, 
                                 plot_title, start_date, end_date) {
   df %>% 
-    filter(!stringr::str_detect(uds_dx_der, "target")) %>% 
+    filter(!stringr::str_detect(madc_dx, "target")) %>% 
+    # filter(!stringr::str_detect(uds_dx_der, "target")) %>% 
     ggplot(data = ., 
            aes_string(x = x, y = y,
                       group = group_var, color = group_var), size = 2) +
@@ -183,7 +188,8 @@ cum_plot_dx_target_dx <- function(df, x, y, group_var,
                                   dx, dx_target, 
                                   plot_title, start_date, end_date) {
   df %>% 
-    filter(uds_dx_der == dx | uds_dx_der == dx_target) %>% 
+    filter(madc_dx == dx | madc_dx == dx_target) %>% 
+    # filter(uds_dx_der == dx | uds_dx_der == dx_target) %>% 
     ggplot(data = ., 
            aes_string(x = x, y = y, 
                       group = group_var, 

@@ -19,9 +19,10 @@ if (length(args) != 1) {
 
 
 # USEFUL LIBRARIES ----
-suppressMessages( library(dplyr) )
+suppressMessages( library(dplyr)   )
 suppressMessages( library(stringr) )
-suppressMessages( library(tidyr) )
+suppressMessages( library(tidyr)   )
+suppressMessages( library(readr)   )
 
 # USEFUL GLOBALS & FUNCTIONS ----
 if (DEPLOYED) {
@@ -277,7 +278,13 @@ df_u3 <- df_u3 %>%
   # # remove milestoned pts.
   # filter(!(ptid %in% df_u3_mlst)) %>% 
   # keep only distinct / non-duplicate rows
-  distinct(ptid, form_date, .keep_all = TRUE)
+  distinct(ptid, form_date, .keep_all = TRUE) %>% 
+  type_convert(
+    col_types = cols(.default = col_integer(),
+                     ptid     = col_character(),
+                     redcap_event_name = col_character(),
+                     form_date = col_date())
+  )
 
 # __ MiNDSet Registry ----
 
@@ -308,6 +315,35 @@ df_u3 <- df_u3 %>%
       TRUE ~ NA_character_
     )
   ) %>% 
+  # create MADC diagnosis field
+  rowwise() %>% 
+  # mutate(md_sum = amndem + pca + ppasyn + ftdsyn + lbdsyn + namndem) %>% 
+  mutate(md_sum = 
+           sum(amndem, pca, ppasyn, ftdsyn, lbdsyn, namndem, na.rm = TRUE)) %>% 
+  mutate(madc_dx = case_when(
+    sum(amndem, pca, ppasyn, ftdsyn, lbdsyn, namndem, na.rm = TRUE) > 1 ~ 
+      "Mixed dementia",
+    # note_mlstn_type == 0 & deceased == 1 ~ "Deceased",
+    # note_mlstn_type == 0 & discont  == 1 ~ "Dropped",
+    normcog == 1 ~ "Normal",
+    impnomci == 1 ~ "Impaired not MCI",
+    demented == 0 & mciamem  == 1 ~ "MCI",
+    demented == 0 & mciaplus == 1 ~ "MCI",
+    demented == 0 & mcinon1  == 1 ~ "MCI",
+    demented == 0 & mcinon2  == 1 ~ "MCI",
+    amndem == 1 & (alzdis == 1 & alzdisif == 1) ~ "AD",
+    (amndem == 1 | ppasyn == 1) & 
+      ((psp == 1 & pspif == 1) |
+         (cort == 1 & cortif == 1) |
+         (ftldmo == 1 & ftldmoif == 1) |
+         (ftldnos == 1 & ftldnoif == 1)) ~ "FTD/PPA",
+    lbdsyn == 1 ~ "LBD",
+    ftdsyn == 1 ~ "FTD/PPA",
+    sum(amndem, pca, ppasyn, ftdsyn, lbdsyn, namndem, na.rm = TRUE) == 1 ~
+      "Other dementia",
+    TRUE ~ NA_character_
+  )) %>% 
+  ungroup() %>% 
   # simplify UDS diagnosis fields
   mutate(uds_dx_der = case_when(
     normcog  == 1 ~ "Normal",
@@ -425,6 +461,7 @@ df_u3 <- df_u3 %>%
     col_types = readr::cols(.default        = readr::col_integer(),
                             ptid            = readr::col_character(),
                             form_date       = readr::col_date(),
+                            madc_dx         = readr::col_character(),
                             uds_dx_der      = readr::col_character(),
                             uds_prim_etio   = readr::col_character(),
                             uds_condition   = readr::col_character(),
