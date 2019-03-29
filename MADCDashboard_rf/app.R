@@ -1,5 +1,10 @@
 # app.R
 
+# # # # #
+# Copy all files to R Shiny server ----
+# scp ~/"Box Sync"/Documents/MADC_Dashboard/MADCDashboard_rf/*.R 
+#   ldmay@rshiny.umms.med.umich.edu:~/ShinyApps/MADCDashboard_rf/
+
 # LOAD LIBRARIES ----
 
 suppressMessages( library(shiny) )
@@ -35,20 +40,20 @@ DT_OPTIONS <- list(paging = FALSE,
 
 SUMMARY_TBL_GROUPS <-
   list(
-    "MADC Dx"           = "madc_dx" 
-    , "UDS Dx"          = "uds_dx_der"
-    , "UDS Prim Etio"   = "uds_prim_etio"
-    , "UDS Condition"   = "uds_condition"
-    , "Race"            = "race"
-    , "Sex"             = "sex"
-    , "County"          = "county"
-    , "ZIP"             = "zip_code"
-    , "Blood"           = "blood_drawn"
-    , "Saliva"          = "sample_given"
-    , "MRI"             = "mri_completed"
-    , "Autopsy"         = "consent_to_autopsy"
-    , "Visit Num"       = "visit_num"
-    , "Milestoned"      = "milestone"
+    "MADC Dx"             = "MADC Dx" 
+    , "UDS Dx"            = "UDS Dx"
+    , "UDS Prim Etio"     = "UDS Primary Etiology"
+    , "UDS Condition"     = "UDS Condition"
+    , "Race"              = "Race"
+    , "Sex"               = "Sex"
+    , "County"            = "County"
+    , "ZIP"               = "ZIP Code"
+    , "Blood"             = "Blood Drawn"
+    , "Saliva"            = "Saliva Given"
+    , "MRI"               = "MRI Completed"
+    , "Autopsy Consented" = "Autopsy Consented"
+    , "Visit Num"         = "Visit Num"
+    , "Milestoned"        = "Milestoned"
   )
 
 SUMMARY_TBL_VISITS <- 
@@ -92,14 +97,14 @@ ui <- dashboardPage(
       tabItem(
         tabName = "summary",
         h2("Summary Table"),
-        fluidRow(
-          box(width = 12,
-              radioButtons(
-                inputId = "visit_filter",
-                label = "Participant Visit(s)",
-                inline = TRUE,
-                choices = SUMMARY_TBL_VISITS,
-                selected = "most_recent"))),
+        # fluidRow(
+        #   box(width = 12,
+        #       radioButtons(
+        #         inputId = "visit_filter",
+        #         label = "Participant Visit(s)",
+        #         inline = TRUE,
+        #         choices = SUMMARY_TBL_VISITS,
+        #         selected = "most_recent"))),
         fluidRow(
           box(width = 12,
               checkboxGroupInput(
@@ -108,16 +113,22 @@ ui <- dashboardPage(
                 inline = TRUE,
                 choices = SUMMARY_TBL_GROUPS))),
         fluidRow(
-          box(width = 12,
+          box(width = 6,
+              height = 100,
+              radioButtons(
+                inputId = "visit_filter",
+                label = "Participant Visit(s)",
+                inline = TRUE,
+                choices = SUMMARY_TBL_VISITS,
+                selected = "most_recent")),
+          box(width = 6,
+              height = 100,
               textInput(
                 inputId = "field_filters",
-                label = "R Filters",
+                label = "R Filter(s)",
                 placeholder = 
                   paste("Enter valid R conditional expression:",
-                        paste0("madc_dx == \"MCI\""))
-                        # paste0("uds_dx_der == \"MCI\""))
-              )
-          )
+                        paste0("`MADC Dx` == \"MCI\""))))
         ),
         fluidRow(
           box(width = 12,
@@ -472,7 +483,7 @@ server <- function(input, output, session) {
   output$plot_cum_sex <- renderPlot({
     cum_plot_single_grp(df = df_u3_ms_plot(),
                         x = "form_date", y = "sex_cumsum",
-                        group_var = "sex",
+                        group_var = "`Sex`",
                         plot_title = "Participants Over Time by Sex",
                         start_date = as.Date("2017-03-01"),
                         end_date = as.Date("2022-03-01"))
@@ -482,7 +493,7 @@ server <- function(input, output, session) {
   output$plot_cum_race <- renderPlot({
     cum_plot_single_grp(df = df_u3_ms_plot(),
                         x = "form_date", y = "race_cumsum",
-                        group_var = "race",
+                        group_var = "`Race`",
                         plot_title = "Participants Over Time by Race",
                         start_date = as.Date("2017-03-01"),
                         end_date = as.Date("2022-03-01"))
@@ -498,8 +509,8 @@ server <- function(input, output, session) {
           cum_plot_dx_target_dx(df = df_u3_ms_plot(),
                                 x = "form_date", y = "madc_dx_cumsum",
                                 # x = "form_date", y = "uds_dx_der_cumsum",
-                                group_var = "madc_dx",
-                                # group_var = "uds_dx_der",
+                                group_var = "`MADC Dx`",
+                                # group_var = "`UDS Dx`",
                                 dx = dx_abrv,
                                 dx_target = paste0(dx_abrv, " target"),
                                 plot_title = paste0(dx_abrv, " vs. ",
@@ -514,11 +525,11 @@ server <- function(input, output, session) {
   # Condx Plots ----
   data_condx <- reactive({
     df_u3_ms() %>% 
-      filter(!is.na(madc_dx)) %>% 
-      # filter(!is.na(uds_dx_der)) %>% 
+      filter(!is.na(`MADC Dx`)) %>% 
+      # filter(!is.na(`UDS Dx`)) %>% 
       get_visit_n(ptid, form_date, Inf) %>%
-      select(ptid, madc_dx, condx_combn_name)
-      # select(ptid, uds_dx_der, condx_combn_name)
+      select(ptid, `MADC Dx`, condx_combn_name)
+      # select(ptid, `UDS Dx`, condx_combn_name)
   })
   
   select_condx <- reactive({ as.character(unlist(input$condxCheckboxesFast)) })

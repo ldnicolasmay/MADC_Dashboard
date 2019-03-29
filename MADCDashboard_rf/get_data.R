@@ -183,8 +183,8 @@ fields_ms_dem_raw <-
 # Research data
 fields_ms_res_raw <-
   c(
-    'blood_drawn'          # research
-    , 'consent_to_autopsy' # research
+    # 'blood_drawn'          # research
+    'consent_to_autopsy' # research
     , 'mri_completed'      # research
     , 'sample_given'       # research
     # , 'comp_withd'         # research
@@ -208,9 +208,12 @@ rm(fields_ms_dem_raw)
 rm(fields_ms_res_raw)
 rm(fields_ms_time_raw)
 
-# __ UDS 2
-
-# _ Retrieve Data via REDCap API ----
+fields_ms_blood_raw <- 
+  c(
+    "subject_id"
+    , "blood_drawn"
+  )
+fields_ms_blood <- fields_ms_blood_raw %>% paste(collapse = ",")
 
 # __ UDS 3
 
@@ -261,6 +264,28 @@ json_ms <-
 # Convert JSON to tibble; convert "" values to NA
 df_ms <- jsonlite::fromJSON(json_ms) %>% as_tibble() %>% na_if("")
 
+# Retrieve JSON object
+json_ms_blood <-
+  RCurl::postForm(
+    uri     = REDCAP_API_URI,
+    token   = REDCAP_API_TOKEN_MINDSET,
+    content = 'record',
+    format  = 'json',
+    type    = 'flat',
+    fields  = fields_ms_blood,
+    rawOrLabel             = 'label',
+    rawOrLabelHeaders      = 'raw',
+    exportCheckboxLabel    = 'false',
+    exportSurveyFields     = 'false',
+    exportDataAccessGroups = 'false',
+    returnFormat           = 'json',
+    # filterLogic            = '([exam_date] >= "2017-03-28")',
+    # .opts = list(ssl.verifypeer = TRUE, verbose = FALSE) # see note below*
+    .opts = list(ssl.verifypeer = FALSE, verbose = FALSE)
+  ) %>% 
+  str_replace_all(pattern = "\r\n", replacement = " ")
+# Convert JSON to tibble; convert "" values to NA
+df_ms_blood <- jsonlite::fromJSON(json_ms_blood) %>% as_tibble() %>% na_if("")
 
 # PROCESS DATA ----
 
@@ -275,8 +300,6 @@ df_u3 <- df_u3 %>%
   filter(!is.na(form_date)) %>% 
   # remove double data entry (DDE) records
   filter(str_detect(ptid, pattern = "^UM\\d{8}$")) %>% 
-  # # remove milestoned pts.
-  # filter(!(ptid %in% df_u3_mlst)) %>% 
   # keep only distinct / non-duplicate rows
   distinct(ptid, form_date, .keep_all = TRUE) %>% 
   type_convert(
@@ -299,6 +322,18 @@ df_ms <- df_ms %>%
   rename(race = race_value) %>% 
   # keep only distinct / non-duplicate rows
   distinct(subject_id, exam_date, .keep_all = TRUE)
+
+df_ms_blood <- df_ms_blood %>% 
+  # deselect useless field(s)
+  select(-redcap_event_name) %>% 
+  # clean up messy labelled data values
+  mutate(blood_drawn = str_replace(blood_drawn, "\\d{1,}\\. ", "")) %>% 
+  # remove records without `blood_drawn` == "Yes"
+  filter(blood_drawn == "Yes") %>% 
+  # remove non UM ID records
+  filter(str_detect(subject_id, pattern = "^UM\\d{8}$")) %>% 
+  # keep only distinct / non-duplicate rows
+  distinct(subject_id, blood_drawn, .keep_all = TRUE)
 
 # _ Mutate Data ----
 
@@ -349,22 +384,22 @@ df_u3 <- df_u3 %>%
     normcog  == 1 ~ "Normal",
     demented == 1 & amndem == 1 ~ 
       "Amnestic multidomain dementia syndrome",
-      # "Dementia",
+    # "Dementia",
     demented == 1 & pca == 1 ~
       "Posterior cortical atrophy syndrome",
-      # "Dementia",
+    # "Dementia",
     demented == 1 & ppasyn == 1 ~
       "Primary progressive aphasia syndrome",
-      # "Dementia",
+    # "Dementia",
     demented == 1 & ftdsyn == 1 ~
       "Behavioral variant FTD syndrome",
-      # "Dementia",
+    # "Dementia",
     demented == 1 & lbdsyn == 1 ~
       "Lewy body dementia syndrome",
-      # "LBD",
+    # "LBD",
     demented == 1 & namndem == 1 ~
       "Non-amnestic multidomain dementia syndrome",
-      # "Dementia",
+    # "Dementia",
     demented == 0 & mciamem  == 1 ~ "MCI",
     demented == 0 & mciaplus == 1 ~ "MCI",
     demented == 0 & mcinon1  == 1 ~ "MCI",
@@ -518,7 +553,7 @@ df_ms <- df_ms %>%
   ) %>% 
   # clean up messy labelled fields
   mutate(zip_code = str_sub(zip_code, 1, 5),
-         blood_drawn = str_replace(blood_drawn, "\\d{1,}\\. ", ""),
+         # blood_drawn = str_replace(blood_drawn, "\\d{1,}\\. ", ""),
          sample_given = str_replace(sample_given, "\\d{1,} ", ""),
          # comp_withd = case_when(
          #   comp_withd == "Y" ~ "Yes",
@@ -540,6 +575,10 @@ df_ms <- df_ms %>%
            lubridate::interval(second_consensus, fb_date) /
            lubridate::ddays(1))
 
+# Fix `blood_drawn` data sparsity
+df_ms <- left_join(x = df_ms,
+                   y = df_ms_blood,
+                   by = "subject_id")
 
 # _ Join Data ----
 df_u3_ms <- left_join(x = df_u3, 
@@ -547,27 +586,27 @@ df_u3_ms <- left_join(x = df_u3,
                       by = c("ptid" = "subject_id", 
                              "form_date" = "exam_date"))
 
-# # _ Mutate `simple_dx` fields
-# df_u3_ms <- df_u3_ms %>% 
-# # Collapse uds_dx_der + uds_prim_etio => simple_dx
-# mutate(simple_dx = case_when(
-#   uds_dx_der    == "NL"  ~ "NL",
-#   uds_prim_etio == "AD"  ~ "AD",
-#   uds_prim_etio == "LBD" ~ "LBD",
-#   uds_prim_etio == "FTLD NOS" | 
-#     uds_prim_etio == "FTLD with motor neuron disease" ~ "FTD",
-#   uds_dx_der == "MCI" & 
-#     (is.na(uds_prim_etio) |
-#        uds_prim_etio != "AD" |
-#        uds_prim_etio != "LBD" |
-#        uds_prim_etio != "FTLD NOS" |
-#        uds_prim_etio != "FTLD with motor neuron disease") ~ "MCI",
-#   TRUE ~ NA_character_
-# ))
 
 # _ Hash `ptid` field ----
 df_u3_ms <- df_u3_ms %>% 
   mutate(ptid = openssl::sha256(ptid))
+
+# _ Rename some fields to natural English ----
+df_u3_ms <- df_u3_ms %>% 
+  rename(`Visit Num`       = visit_num
+         , `Sex`           = sex
+         , `MADC Dx`       = madc_dx
+         , `UDS Dx`        = uds_dx_der
+         , `UDS Primary Etiology` = uds_prim_etio
+         , `UDS Condition` = uds_condition
+         , `Milestoned`    = milestone
+         , `County`        = county
+         , `ZIP Code`      = zip_code
+         , `Race`          = race
+         , `Blood Drawn`   = blood_drawn
+         , `Saliva Given`  = sample_given
+         , `MRI Completed` = mri_completed
+         , `Autopsy Consented` = consent_to_autopsy)
 
 
 # _ Write Data ----
