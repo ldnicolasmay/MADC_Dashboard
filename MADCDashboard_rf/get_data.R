@@ -53,6 +53,7 @@ fields_u3_a1_raw <-
   c(
     "sex"            # sex
     # , "race"         # race not available for old cohort; no A1 fields!
+    , "hispanic"
   ) %>% c(., paste0("fu_", .), paste0("tele_", .))
 # Form D1 (IVP, FVP, TVP)
 fields_u3_d1_raw <-
@@ -186,7 +187,7 @@ fields_ms_res_raw <-
     # 'blood_drawn'          # research
     'consent_to_autopsy' # research
     , 'mri_completed'      # research
-    , 'sample_given'       # research
+    # , 'sample_given'       # research
     # , 'comp_withd'         # research
   )
 # Timeline data
@@ -214,6 +215,13 @@ fields_ms_blood_raw <-
     , "blood_drawn"
   )
 fields_ms_blood <- fields_ms_blood_raw %>% paste(collapse = ",")
+
+fields_ms_saliva_raw <-
+  c(
+    "subject_id"
+    , "sample_given"
+  )
+fields_ms_saliva <- fields_ms_saliva_raw %>% paste(collapse = ",")
 
 # __ UDS 3
 
@@ -287,6 +295,29 @@ json_ms_blood <-
 # Convert JSON to tibble; convert "" values to NA
 df_ms_blood <- jsonlite::fromJSON(json_ms_blood) %>% as_tibble() %>% na_if("")
 
+# Retrieve JSON object
+json_ms_saliva <-
+  RCurl::postForm(
+    uri     = REDCAP_API_URI,
+    token   = REDCAP_API_TOKEN_MINDSET,
+    content = 'record',
+    format  = 'json',
+    type    = 'flat',
+    fields  = fields_ms_saliva,
+    rawOrLabel             = 'label',
+    rawOrLabelHeaders      = 'raw',
+    exportCheckboxLabel    = 'false',
+    exportSurveyFields     = 'false',
+    exportDataAccessGroups = 'false',
+    returnFormat           = 'json',
+    # filterLogic            = '([exam_date] >= "2017-03-28")',
+    # .opts = list(ssl.verifypeer = TRUE, verbose = FALSE) # see note below*
+    .opts = list(ssl.verifypeer = FALSE, verbose = FALSE)
+  ) %>% 
+  str_replace_all(pattern = "\r\n", replacement = " ")
+# Convert JSON to tibble; convert "" values to NA
+df_ms_saliva <- jsonlite::fromJSON(json_ms_saliva) %>% as_tibble() %>% na_if("")
+
 # PROCESS DATA ----
 
 # _ Clean Data ----
@@ -327,13 +358,25 @@ df_ms_blood <- df_ms_blood %>%
   # deselect useless field(s)
   select(-redcap_event_name) %>% 
   # clean up messy labelled data values
-  mutate(blood_drawn = str_replace(blood_drawn, "\\d{1,}\\. ", "")) %>% 
+  mutate(blood_drawn = str_extract(blood_drawn, "Yes")) %>% 
   # remove records without `blood_drawn` == "Yes"
   filter(blood_drawn == "Yes") %>% 
   # remove non UM ID records
   filter(str_detect(subject_id, pattern = "^UM\\d{8}$")) %>% 
   # keep only distinct / non-duplicate rows
   distinct(subject_id, blood_drawn, .keep_all = TRUE)
+
+df_ms_saliva <- df_ms_saliva %>% 
+  # deselect useless field(s)
+  select(-redcap_event_name) %>% 
+  # clean up messy labelled data values
+  mutate(sample_given = str_extract(sample_given, "Yes")) %>% 
+  # remove records without `blood_drawn` == "Yes"
+  filter(sample_given == "Yes") %>% 
+  # remove non UM ID records
+  filter(str_detect(subject_id, pattern = "^UM\\d{8}$")) %>% 
+  # keep only distinct / non-duplicate rows
+  distinct(subject_id, sample_given, .keep_all = TRUE)
 
 # _ Mutate Data ----
 
@@ -350,32 +393,45 @@ df_u3 <- df_u3 %>%
       TRUE ~ NA_character_
     )
   ) %>% 
+  # Propagate values for `sex`
+  propagate_value(ptid, form_date, sex) %>%
+  # Propagate values for `hispanic`
+  propagate_value(ptid, form_date, hispanic) %>% 
+  mutate(hispanic = case_when(
+    hispanic == 1 ~ "Hispanic",
+    TRUE ~ NA_character_
+  )) %>% 
   # create MADC diagnosis field
   rowwise() %>% 
   # mutate(md_sum = amndem + pca + ppasyn + ftdsyn + lbdsyn + namndem) %>% 
   mutate(md_sum = 
            sum(amndem, pca, ppasyn, ftdsyn, lbdsyn, namndem, na.rm = TRUE)) %>% 
   mutate(madc_dx = case_when(
-    sum(amndem, pca, ppasyn, ftdsyn, lbdsyn, namndem, na.rm = TRUE) > 1 ~ 
+    sum(amndem, pca, ppasyn, ftdsyn, lbdsyn, namndem, na.rm = TRUE) > 1 ~
       "Mixed dementia",
-    # note_mlstn_type == 0 & deceased == 1 ~ "Deceased",
-    # note_mlstn_type == 0 & discont  == 1 ~ "Dropped",
-    normcog == 1 ~ "Normal",
-    impnomci == 1 ~ "Impaired not MCI",
-    demented == 0 & mciamem  == 1 ~ "MCI",
-    demented == 0 & mciaplus == 1 ~ "MCI",
-    demented == 0 & mcinon1  == 1 ~ "MCI",
-    demented == 0 & mcinon2  == 1 ~ "MCI",
-    amndem == 1 & (alzdis == 1 & alzdisif == 1) ~ "AD",
-    (amndem == 1 | ppasyn == 1) & 
-      ((psp == 1 & pspif == 1) |
+    normcog == 1 ~ "NL",
+    normcog == 0 & demented == 0 & 
+      (mciamem == 1 | mciaplus == 1 | mcinon1 == 1 | mcinon2 == 1) ~ "MCI",
+    normcog == 0 & demented == 0 &
+      impnomci == 1 ~ "Impaired not MCI",
+    normcog == 0 & demented == 1 & (amndem == 1 | namndem == 1) &
+      alzdis == 1 & alzdisif == 1 ~ "AD",
+    normcog == 0 & demented == 1 & lbdsyn == 1 ~ "LBD",
+    normcog == 0 & demented == 1 & 
+      (ftdsyn == 1 | 
+         (psp == 1 & pspif == 1) |
          (cort == 1 & cortif == 1) |
-         (ftldmo == 1 & ftldmoif == 1) |
-         (ftldnos == 1 & ftldnoif == 1)) ~ "FTD/PPA",
-    lbdsyn == 1 ~ "LBD",
-    ftdsyn == 1 ~ "FTD/PPA",
-    sum(amndem, pca, ppasyn, ftdsyn, lbdsyn, namndem, na.rm = TRUE) == 1 ~
-      "Other dementia",
+         (ftldmo == 1 & ftldmoif == 1) | 
+         (ftldnos == 1 & ftldnoif == 1)) ~ "FTD",
+    normcog == 0 & demented == 1 &
+      cvd == 1 & cvdif == 1 ~ "Vascular dementia",
+    normcog == 0 & demented == 1 &
+      ppasyn == 1 &
+      (is.na(psp) |
+         is.na(cort) |
+         is.na(ftldmo) |
+         is.na(ftldnos)) ~ "PPA",
+    demented == 1 ~ "Other dementia",
     TRUE ~ NA_character_
   )) %>% 
   ungroup() %>% 
@@ -551,10 +607,12 @@ df_ms <- df_ms %>%
                             second_consensus = readr::col_date(),
                             fb_date          = readr::col_date())
   ) %>% 
+  # Propagate values for `race`
+  propagate_value(subject_id, exam_date, race) %>% #
   # clean up messy labelled fields
   mutate(zip_code = str_sub(zip_code, 1, 5),
          # blood_drawn = str_replace(blood_drawn, "\\d{1,}\\. ", ""),
-         sample_given = str_replace(sample_given, "\\d{1,} ", ""),
+         # sample_given = str_replace(sample_given, "\\d{1,} ", ""),
          # comp_withd = case_when(
          #   comp_withd == "Y" ~ "Yes",
          #   comp_withd == "N" ~ "No",
@@ -575,10 +633,14 @@ df_ms <- df_ms %>%
            lubridate::interval(second_consensus, fb_date) /
            lubridate::ddays(1))
 
-# Fix `blood_drawn` data sparsity
-df_ms <- left_join(x = df_ms,
-                   y = df_ms_blood,
-                   by = "subject_id")
+# Fix `blood_drawn` and `sample_given` data sparsity via joins
+df_ms <- 
+  left_join(x = df_ms,
+            y = df_ms_blood,
+            by = "subject_id") %>% 
+  left_join(x = .,
+            y = df_ms_saliva,
+            by = "subject_id")
 
 # _ Join Data ----
 df_u3_ms <- left_join(x = df_u3, 
@@ -603,6 +665,7 @@ df_u3_ms <- df_u3_ms %>%
          , `County`        = county
          , `ZIP Code`      = zip_code
          , `Race`          = race
+         , `Hispanic`      = hispanic
          , `Blood Drawn`   = blood_drawn
          , `Saliva Given`  = sample_given
          , `MRI Completed` = mri_completed

@@ -16,11 +16,11 @@ suppressMessages( library(stringr) )
 suppressMessages( library(purrr) )
 suppressMessages( library(rlang) )
 suppressMessages( library(ggplot2) )
-suppressMessages( library(plotly) )
+# suppressMessages( library(plotly) )
 suppressMessages( library(lubridate) )
 
-DEPLOYED <- FALSE
-# DEPLOYED <- TRUE
+# DEPLOYED <- FALSE
+DEPLOYED <- TRUE
 
 if (DEPLOYED) {
   path_to_app <- # Michigan Medicine R Shiny server
@@ -45,6 +45,7 @@ SUMMARY_TBL_GROUPS <-
     , "UDS Prim Etio"     = "UDS Primary Etiology"
     , "UDS Condition"     = "UDS Condition"
     , "Race"              = "Race"
+    , "Hispanic"          = "Hispanic"
     , "Sex"               = "Sex"
     , "County"            = "County"
     , "ZIP"               = "ZIP Code"

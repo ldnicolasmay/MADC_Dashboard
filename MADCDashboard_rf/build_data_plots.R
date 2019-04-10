@@ -38,7 +38,7 @@ source(paste0(path_to_app, "helpers_plots.R"), local = TRUE)
 
 df_u3_ms_plot <- df_u3_ms %>% 
   # Keep relevant fields
-  select(ptid, form_date, `Visit Num`, `Sex`, `Race`, 
+  select(ptid, form_date, `Visit Num`, `Sex`, `Race`, # `Hispanic`
          `MADC Dx`, `MADC Dx`, `UDS Primary Etiology`) %>% 
   # Propogate most recent `madc_dx` to all visits
   group_by(ptid) %>% 
