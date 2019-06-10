@@ -77,7 +77,7 @@ df_u3_ms_plot <- df_u3_ms_plot %>%
   mutate(madc_dx_cumsum = cumsum(unit)) %>%
   ungroup() %>% 
   # add dx target rows
-  add_dx_target_rows("Normal",  "Normal target",  
+  add_dx_target_rows("NL",  "NL target",  
                      c(0, 63, 125, 125, 125, 125)) %>% 
   add_dx_target_rows("MCI", "MCI target", 
                      c(0, 50, 100, 100, 100, 100)) %>% 

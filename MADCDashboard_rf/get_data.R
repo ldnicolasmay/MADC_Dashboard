@@ -403,9 +403,6 @@ df_u3 <- df_u3 %>%
   )) %>% 
   # create MADC diagnosis field
   rowwise() %>% 
-  # mutate(md_sum = amndem + pca + ppasyn + ftdsyn + lbdsyn + namndem) %>% 
-  mutate(md_sum = 
-           sum(amndem, pca, ppasyn, ftdsyn, lbdsyn, namndem, na.rm = TRUE)) %>% 
   mutate(madc_dx = case_when(
     sum(amndem, pca, ppasyn, ftdsyn, lbdsyn, namndem, na.rm = TRUE) > 1 ~
       "Mixed dementia",
@@ -558,6 +555,7 @@ df_u3 <- df_u3 %>%
                             uds_condition   = readr::col_character(),
                             sex             = readr::col_character(),
                             race            = readr::col_character(),
+                            hispanic        = readr::col_character(),
                             note_mlstn_type = readr::col_character())) %>% 
   # ensure 0 or 1 integers fills conditions fields
   mutate_at(vars(cancer:hyposom),

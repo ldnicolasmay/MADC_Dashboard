@@ -16,7 +16,6 @@ suppressMessages( library(stringr) )
 suppressMessages( library(purrr) )
 suppressMessages( library(rlang) )
 suppressMessages( library(ggplot2) )
-# suppressMessages( library(plotly) )
 suppressMessages( library(lubridate) )
 
 # DEPLOYED <- FALSE
@@ -206,9 +205,9 @@ ui <- dashboardPage(
             title = "Target Enrollment by Diagnosis",
             id = "tabset_targenroll",
             height = "550px",
-            tabPanel("Normal",
+            tabPanel("NL",
                      box(width = 12,
-                         plotOutput(outputId = "plot_cum_dx_target_normal"))),
+                         plotOutput(outputId = "plot_cum_dx_target_nl"))),
             tabPanel("MCI",
                      box(width = 12,
                          plotOutput(outputId = "plot_cum_dx_target_mci"))),
@@ -257,7 +256,7 @@ ui <- dashboardPage(
         ),
         fluidRow(
           box( plotOutput(outputId = "select_condx_combn_pie_normal"),
-               width = 6, title = h2("Normal")),
+               width = 6, title = h2("NL")),
           box( plotOutput(outputId = "select_condx_combn_pie_mci"),
                width = 6, title = h2("MCI"))
         ),
@@ -502,7 +501,7 @@ server <- function(input, output, session) {
   
   # Cumulative enrollment by diagnosis vs. diagnosis targets
   # Use `observe` + `lapply` to render all the target diagnosis plots
-  diagnosis_abbrevs <- c("Normal", "MCI", "AD", "LBD")
+  diagnosis_abbrevs <- c("NL", "MCI", "AD", "LBD")
   observe({
     lapply(diagnosis_abbrevs, function(dx_abrv) {
       output[[paste0("plot_cum_dx_target_", tolower(dx_abrv))]] <-
@@ -586,7 +585,7 @@ server <- function(input, output, session) {
     pie_graph_fast(
       data = data_condx(),
       condx = select_condx(),
-      dx = "Normal",
+      dx = "NL",
       combn_vctr = select_condx_combn_lst()$select_condx_combn_vctr,
       combn_vctr_rgx = select_condx_combn_lst()$select_condx_combn_vctr_rgx)
   })
