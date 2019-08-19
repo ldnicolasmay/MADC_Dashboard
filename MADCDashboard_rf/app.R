@@ -18,16 +18,20 @@ suppressMessages( library(rlang) )
 suppressMessages( library(ggplot2) )
 suppressMessages( library(lubridate) )
 
-# DEPLOYED <- FALSE
 DEPLOYED <- TRUE
+DOCKER_DEV <- TRUE
 
 if (DEPLOYED) {
   path_to_app <- # Michigan Medicine R Shiny server
     "~/ShinyApps/MADCDashboard_rf/" 
+} else if (DOCKER_DEV) {
+  path_to_app <- # local via docker
+    "/Box Sync/Documents/MADC_Dashboard/MADCDashboard_rf/"
 } else {
   path_to_app <- # local
     "~/Box Sync/Documents/MADC_Dashboard/MADCDashboard_rf/"
 }
+
 source(paste0(path_to_app, "helpers.R"), local = TRUE)
 source(paste0(path_to_app, "helpers_app.R"), local = TRUE)
 source(paste0(path_to_app, "helpers_plots.R"), local = TRUE)
