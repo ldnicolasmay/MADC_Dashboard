@@ -41,17 +41,17 @@ tryCatch(
 
 if (ENV == "server") { # ignore `DEV` constant
   # Michigan Medicine R Shiny server
-  path_to_app <- "~/ShinyApps/MADCDashboard_rf/"
+  path_to_app <- "~/ShinyApps/MADCDashboard/"
 } else if (ENV == "local" && DEV == "local") {
   # Local development w/o Docker container
   warning(
     red(paste("Running this script in a local environment without Docker is",
               bold(underline("NOT")), "recommended!"))
   )
-  path_to_app <- "~/Box/Documents/MADC_Dashboard/MADCDashboard_interact/"
+  path_to_app <- "~/Box/Documents/MADC_Dashboard/MADCDashboard/"
 } else if (ENV == "local" && DEV == "docker") {
   # Local development on Docker container
-  path_to_app <- "/Box/Documents/MADC_Dashboard/MADCDashboard_interact/"
+  path_to_app <- "/Box/Documents/MADC_Dashboard/MADCDashboard/"
 }
 
 source(paste0(path_to_app, "helpers.R"), local = TRUE)

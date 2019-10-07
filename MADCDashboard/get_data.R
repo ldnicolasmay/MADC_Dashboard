@@ -33,7 +33,7 @@ tryCatch(
   error = function(e) {
     # message()
     stop(red(paste0("`--dev` arugment not set: ",
-                    "Use either `--dev=local` or `--env=docker`")))
+                    "Use either `--dev=local` or `--dev=docker`")))
   }
 )
 
@@ -43,17 +43,17 @@ tryCatch(
 
 if (ENV == "server") { # ignore `DEV` constant
   # Michigan Medicine R Shiny server
-  path_to_app <- "~/ShinyApps/MADCDashboard_rf/"
+  path_to_app <- "~/ShinyApps/MADCDashboard/"
 } else if (ENV == "local" && DEV == "local") {
   # Local development w/o Docker container
   warning(
     red(paste("Running this script in a local environment without Docker is",
               bold(underline("NOT")), "recommended!"))
   )
-  path_to_app <- "~/Box/Documents/MADC_Dashboard/MADCDashboard_interact/"
+  path_to_app <- "~/Box/Documents/MADC_Dashboard/MADCDashboard/"
 } else if (ENV == "local" && DEV == "docker") {
   # Local development on Docker container
-  path_to_app <- "/Box/Documents/MADC_Dashboard/MADCDashboard_interact/"
+  path_to_app <- "/Box/Documents/MADC_Dashboard/MADCDashboard/"
 }
 source(paste0(path_to_app, "config.R"), local = TRUE)
 source(paste0(path_to_app, "helpers.R"), local = TRUE)
