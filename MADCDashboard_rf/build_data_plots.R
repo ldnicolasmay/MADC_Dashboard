@@ -29,7 +29,7 @@ if (DEPLOYED) {
     "~/ShinyApps/MADCDashboard_rf/" 
 } else {
   path_to_app <- # local
-    "~/Box Sync/Documents/MADC_Dashboard/MADCDashboard_rf/"
+    "/Box/Documents/MADC_Dashboard/MADCDashboard_rf/"
 }
 df_u3_ms <- readRDS(paste0(path_to_app, "rds/df_u3_ms.Rds"))
 source(paste0(path_to_app, "helpers_plots.R"), local = TRUE)

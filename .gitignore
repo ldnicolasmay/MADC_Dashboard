@@ -1,0 +1,16 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.Rds
+*.csv
+*.xls*
+*.doc*
+*.txt
+*.pdf
+*.Rprof
+blah.R
+interactive_data_vis_web_r.R
+sketch*
+*.sh
+config*

@@ -30,7 +30,7 @@ if (DEPLOYED) {
     "~/ShinyApps/MADCDashboard_rf/" 
 } else {
   path_to_app <- # local
-    "~/Box Sync/Documents/MADC_Dashboard/MADCDashboard_rf/"
+    "/Box/Documents/MADC_Dashboard/MADCDashboard_rf/"
 }
 source(paste0(path_to_app, "config_new.R"), local = TRUE)
 source(paste0(path_to_app, "helpers.R"), local = TRUE)
@@ -150,7 +150,7 @@ fields_u3_d2_raw <-
 fields_u3_m1_raw <-
   c(
     "note_mlstn_type"
-    , "protocol"
+    # , "protocol"
     , "deceased"
     , "discont"
   )
@@ -160,11 +160,8 @@ fields_u3 <- c(fields_u3_hd_raw
                , fields_u3_d1_raw
                , fields_u3_d2_raw
                , fields_u3_m1_raw) %>% paste(collapse = ",")
-rm(fields_u3_hd_raw)
-rm(fields_u3_a1_raw)
-rm(fields_u3_d1_raw)
-rm(fields_u3_d2_raw)
-rm(fields_u3_m1_raw)
+rm(fields_u3_hd_raw); rm(fields_u3_a1_raw); rm(fields_u3_d1_raw)
+rm(fields_u3_d2_raw); rm(fields_u3_m1_raw)
 
 # __ MiNDSet Registry ----
 
@@ -204,10 +201,8 @@ fields_ms <- c(fields_ms_head_raw,
                fields_ms_dem_raw,
                fields_ms_res_raw,
                fields_ms_time_raw) %>% paste(collapse = ",")
-rm(fields_ms_head_raw)
-rm(fields_ms_dem_raw)
-rm(fields_ms_res_raw)
-rm(fields_ms_time_raw)
+rm(fields_ms_head_raw); rm(fields_ms_dem_raw)
+rm(fields_ms_res_raw); rm(fields_ms_time_raw)
 
 fields_ms_blood_raw <- 
   c(
@@ -246,6 +241,7 @@ json_u3 <-
   str_replace_all(pattern = "\r\n", replacement = " ")
 # Convert JSON to tibble; convert "" values to NA
 df_u3 <- jsonlite::fromJSON(json_u3) %>% as_tibble() %>%  na_if("")
+
 
 # __ MiNDSet Registry ----
 
@@ -318,12 +314,37 @@ json_ms_saliva <-
 # Convert JSON to tibble; convert "" values to NA
 df_ms_saliva <- jsonlite::fromJSON(json_ms_saliva) %>% as_tibble() %>% na_if("")
 
+
 # PROCESS DATA ----
 
 # _ Clean Data ----
 
 # __ UDS 3 ----
 
+# Split off useful milestone data
+df_u3_mlstn <- 
+  df_u3 %>% 
+  select(ptid, note_mlstn_type, deceased, discont) %>% 
+  filter(str_detect(ptid, "^UM\\d{8}$")) %>% 
+  filter(!is.na(note_mlstn_type)) %>% 
+  filter(note_mlstn_type == 0)
+
+# Rejoin useful milestone data to `df_u3`
+df_u3 <-
+  df_u3 %>% 
+  select(-note_mlstn_type, -deceased, -discont) %>% 
+  left_join(df_u3_mlstn, by = "ptid") %>% 
+  select(
+    ptid
+    , form_date
+    , redcap_event_name
+    , note_mlstn_type
+    , deceased
+    , discont
+    , everything()
+  )
+
+# General clean
 df_u3 <- df_u3 %>% 
   # deselect useless field(s)
   select(-redcap_event_name) %>%
@@ -568,11 +589,13 @@ df_u3 <- df_u3 %>%
   mutate(milestone = case_when(
     note_mlstn_type == 0L & deceased == 1L ~ "Deceased",
     note_mlstn_type == 0L & discont  == 1L ~ "Dropped",
-    note_mlstn_type == 1L & protocol == 1L ~ "Telephone follow-up",
+    # note_mlstn_type == 1L & protocol == 1L ~ "Telephone follow-up",
     TRUE ~ NA_character_
   )) %>%
-  # drop `note_mlstn_type`, `deceased`, `discont`, `protocol`
-  select(-note_mlstn_type, -deceased, -discont, -protocol) 
+  # # drop `note_mlstn_type`, `deceased`, `discont`, `protocol`
+  # select(-note_mlstn_type, -deceased, -discont, -protocol) 
+  # drop `note_mlstn_type`, `deceased`, `discont`
+  select(-note_mlstn_type, -deceased, -discont)
 
 # Add concatenated comorbid conditions fields
 df_u3 <- df_u3 %>% 

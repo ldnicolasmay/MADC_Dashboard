@@ -1,10 +1,5 @@
 # helpers.R
 
-suppressMessages( library(dplyr) )
-suppressMessages( library(stringr) )
-suppressMessages( library(lubridate) )
-suppressMessages( library(rlang) )
-
 # Useful helper functions used throughout MADC database specialist work
 
 # _ REDCap API helper function
@@ -34,62 +29,23 @@ rc_api_get <- function(uri     = REDCAP_API_URI,
 }
 
 # Helper function
-#' ## Collapse IVP / FVP / TVP fields based on IVP base name
-#' ## Uses rlang non-standard evalution
-#' ### 
-#' #' Example use in loop:
-#' #' # Copy the data frame with collapsible fields
-#' #' df_copy <- df
-#' #' 
-#' #' # Define which fields have "fu_" and "tele_" counterparts
-#' #' collapsible_fields <- c("sex", "maristat")
-#' #' 
-#' #' # Loop over each collapsible field, and do the collapsing
-#' #' # NOTICE USE OF QUASIQUOTATION !! IN 2nd FUNCTION ARGUMENT 
-#' #' for (field in collapsible_fields) {
-#' #'   df_copy <- collapse_ift_cols(df_copy, !!field) # <= NOTICE !!
-#' #' }
-#' #'
-#' ###
-#' collapse_ift_cols <- function(df, col_i) {
-#'   col_i_enquo <- enquo(col_i) # col : expr => quosure
-#'   
-#'   col_i_quoname <- quo_name(col_i_enquo)          # col_i : quosure => string
-#'   col_f_quoname <- paste0("fu_", col_i_quoname)   # col_f : string => string
-#'   col_t_quoname <- paste0("tele_", col_i_quoname) # col_t : string => string
-#'   
-#'   col_f_enquo <- enquo(col_f_quoname) # col_f : string => quosure
-#'   col_t_enquo <- enquo(col_t_quoname) # col_t : string => quosure
-#'   
-#'   # IVP, FVP (fu_), and TVP (tele_) columns are in df
-#'   if (!is.null(df[[col_i_quoname]]) &
-#'       !is.null(df[[col_f_quoname]]) &
-#'       !is.null(df[[col_t_quoname]])) {
-#'     df %>%
-#'       mutate(!!col_i_enquo := coalesce(df[[col_i_quoname]],
-#'                                        df[[col_f_quoname]],
-#'                                        df[[col_t_quoname]])) %>%
-#'       select(-!!col_f_enquo, -!!col_t_enquo)
-#'   } 
-#'   # IVP and FVP (fu_) columns are in df
-#'   else if (!is.null(df[[col_i_quoname]]) &
-#'            !is.null(df[[col_f_quoname]]) &
-#'            is.null(df[[col_t_quoname]])) {
-#'     df %>%
-#'       mutate(!!col_i_enquo := coalesce(df[[col_i_quoname]],
-#'                                        df[[col_f_quoname]])) %>%
-#'       select(-!!col_f_enquo)
-#'   } 
-#'   # IVP and TVP (tele_) columns are in df
-#'   else if (!is.null(df[[col_i_quoname]]) &
-#'            is.null(df[[col_f_quoname]]) &
-#'            !is.null(df[[col_t_quoname]])) {
-#'     df %>%
-#'       mutate(!!col_i_enquo := coalesce(df[[col_i_quoname]],
-#'                                        df[[col_t_quoname]])) %>%
-#'       select(-!!col_t_enquo)
-#'   }
+## Collapse IVP / FVP / TVP fields based on IVP base name
+## Uses rlang non-standard evalution
+###
+#' Example use in loop:
+#' # Copy the data frame with collapsible fields
+#' df_copy <- df
+#'
+#' # Define which fields have "fu_" and "tele_" counterparts
+#' collapsible_fields <- c("sex", "maristat")
+#'
+#' # Loop over each collapsible field, and do the collapsing
+#' # NOTICE USE OF QUASIQUOTATION !! IN 2nd FUNCTION ARGUMENT
+#' for (field in collapsible_fields) {
+#'   df_copy <- collapse_ift_cols(df_copy, !!field) # <= NOTICE !!
 #' }
+#'
+###
 coalesce_ift_cols <- function(df) {
   
   # Get collapsible fields and the correpsonding
@@ -288,10 +244,10 @@ get_visit_n <- function(df, id_field, date_field, n = NULL) {
   # Handle n:
   #   if n is finite, capture the number passed by user
   #   if n is negative infinity, set expression to get earliest visit
-  #   if n is positive infinity, set expression to get latest visit
-  if (is.finite(n)) { vis_cnt_fltr <- enquo(n) }
-  else if (n < 0) { vis_cnt_fltr <- expr(min(visit_count)) }
-  else { vis_cnt_fltr <- expr(max(visit_count)) }
+  #   otherwise (i.e., Inf, NULL), set expression to get latest visit
+  if (is.finite(n)) vis_cnt_fltr <- enquo(n)
+  else if (n < 0)   vis_cnt_fltr <- expr(min(visit_count))
+  else              vis_cnt_fltr <- expr(max(visit_count))
   
   df %>% 
     filter(!is.na(!!enquo_id_field)) %>% 

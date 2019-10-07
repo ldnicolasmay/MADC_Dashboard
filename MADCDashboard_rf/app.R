@@ -26,10 +26,10 @@ if (DEPLOYED) {
     "~/ShinyApps/MADCDashboard_rf/" 
 } else if (DOCKER_DEV) {
   path_to_app <- # local via docker
-    "/Box Sync/Documents/MADC_Dashboard/MADCDashboard_rf/"
+    "/Box/Documents/MADC_Dashboard/MADCDashboard_rf/"
 } else {
   path_to_app <- # local
-    "~/Box Sync/Documents/MADC_Dashboard/MADCDashboard_rf/"
+    "~/Box/Documents/MADC_Dashboard/MADCDashboard_rf/"
 }
 
 source(paste0(path_to_app, "helpers.R"), local = TRUE)
@@ -77,7 +77,7 @@ SUMMARY_TBL_VISITS <-
 ui <- dashboardPage(
   
   # Header ----
-  dashboardHeader(title = "MADC Dashboard"),
+  dashboardHeader(title = "UM MAP Dashboard"),
   
   # Sidebar ----
   dashboardSidebar(
