@@ -2,7 +2,7 @@
 
 # DEFINE GLOBALS ----
 
-CUSTOM_LINE_SIZE <- 1.5
+CUSTOM_LINE_SIZE <- 0.8
 TODAY_COLOR <- "#888888"
 
 ## Vertical line on today
@@ -11,7 +11,7 @@ TODAY_LINE <-
              color = TODAY_COLOR, linetype = "dashed")
 
 ## Axis theme
-CUSTOM_THEME <- theme(text = element_text(size = 15), 
+CUSTOM_THEME <- theme(#text = element_text(size = 15), 
                       axis.text.x = element_text(angle = 45, hjust = 1))
 
 
@@ -118,16 +118,16 @@ propagate_value <- function(df, id_field, visit_num_field, value_field) {
 
 ## Fxn to abstract away work of adding diagnosis target rows
 add_dx_target_rows <- function(df, dx, dx_target, annual_targets) {
-  target_df <- data.frame( # empty target data frame
+  # create empty tibble to hold dx target numbers
+  target_df <- 
     matrix(rep(NA, ncol(df) * 6), nrow = 6, byrow = TRUE,
-           dimnames = list(1:6, names(df)))
-  )
+           dimnames = list(NULL, names(df))) %>% 
+    as_tibble()
   # fill `target_df` with appropriate data
   target_df$ptid <- paste0("UM0000XXX", 0:5)
-  target_df$form_date <- lubridate::as_date(paste0(2017:2022, "-03-01"))
+  target_df$`Visit Date` <- lubridate::as_date(paste0(2017:2022,"-03-01"))
   target_df$`MADC Dx` <- rep(dx_target, 6)
-  # target_df$madc_dx <- rep(dx_target, 6)
-  target_df$madc_dx_cumsum <- annual_targets
+  target_df$`madc_dx_cumsum` <- annual_targets
   # return the original `df` with `target_df` attached
   bind_rows(df, target_df)
 }
@@ -136,8 +136,8 @@ add_dx_target_rows <- function(df, dx, dx_target, annual_targets) {
 cum_plot <- function(df, x, y, plot_title, start_date, end_date) {
   df %>%
     filter(!stringr::str_detect(`MADC Dx`, "target")) %>%
-    # filter(!stringr::str_detect(madc_dx, "target")) %>%
     ggplot(data = ., aes_string(x = x, y = y)) +
+    # geom_line() +
     geom_line(size = CUSTOM_LINE_SIZE) +
     TODAY_LINE +
     scale_x_date(name = "Visit Date",
@@ -157,10 +157,10 @@ cum_plot_single_grp <- function(df, x, y, group_var,
                                 plot_title, start_date, end_date) {
   df %>% 
     filter(!stringr::str_detect(`MADC Dx`, "target")) %>% 
-    # filter(!stringr::str_detect(madc_dx, "target")) %>% 
     ggplot(data = ., 
            aes_string(x = x, y = y,
                       group = group_var, color = group_var), size = 2) +
+    # geom_line() +
     geom_line(size = CUSTOM_LINE_SIZE) +
     TODAY_LINE +
     scale_x_date(name = "Visit Date",
@@ -187,6 +187,7 @@ cum_plot_dx_target_dx <- function(df, x, y, group_var,
                       group = group_var, 
                       color = group_var, 
                       linetype = group_var)) +
+    # geom_line() +
     geom_line(size = CUSTOM_LINE_SIZE) +
     TODAY_LINE +
     scale_x_date(name = "Visit Date",

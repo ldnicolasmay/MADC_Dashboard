@@ -2,45 +2,72 @@
 
 # get_data.R
 
-# HANDLE SCRIPT EXEC ARGS ----
-# Simplifies local-testing v. server-deployed execution of this script
-args <- commandArgs(trailingOnly = TRUE)
-
-DEPLOYED <- logical(length = 1L)
-
-if (length(args) != 1) {
-  stop(paste0("\nSupply an argument of either `local` or `server` ",
-              "after executing `get_mindset_data.R`\n", call. = TRUE))
-} else if (args[1] == "local") {
-  DEPLOYED <- FALSE
-} else if (args[1] == "server") {
-  DEPLOYED <- TRUE
-}
-
 
 # USEFUL LIBRARIES ----
 suppressMessages( library(dplyr)   )
-suppressMessages( library(stringr) )
 suppressMessages( library(tidyr)   )
 suppressMessages( library(readr)   )
+suppressMessages( library(crayon)  )
+suppressMessages( library(stringr) )
+
+
+
+# HANDLE SCRIPT EXEC ARGS ----
+
+# Simplifies local-testing v. server-deployed execution of this script
+args <- commandArgs(trailingOnly = TRUE)
+args_vct <- sub("--.*=(.*)", "\\1", args)
+names(args_vct) <- sub("--(.*)=.*", "\\1", args)
+
+tryCatch(
+  ENV <- args_vct[["env"]],
+  error = function(e) {
+    # message()
+    stop(red(paste0("`--env` arugment not set: ",
+                    "Use either `--env=local` or `--env=server`")))
+  }
+)
+
+tryCatch(
+  DEV <- args_vct[["dev"]],
+  error = function(e) {
+    # message()
+    stop(red(paste0("`--dev` arugment not set: ",
+                    "Use either `--dev=local` or `--env=docker`")))
+  }
+)
+
+
 
 # USEFUL GLOBALS & FUNCTIONS ----
-if (DEPLOYED) {
-  path_to_app <- # Michigan Medicine R Shiny server
-    "~/ShinyApps/MADCDashboard_rf/" 
-} else {
-  path_to_app <- # local
-    "/Box/Documents/MADC_Dashboard/MADCDashboard_rf/"
+
+if (ENV == "server") { # ignore `DEV` constant
+  # Michigan Medicine R Shiny server
+  path_to_app <- "~/ShinyApps/MADCDashboard_rf/"
+} else if (ENV == "local" && DEV == "local") {
+  # Local development w/o Docker container
+  warning(
+    red(paste("Running this script in a local environment without Docker is",
+              bold(underline("NOT")), "recommended!"))
+  )
+  path_to_app <- "~/Box/Documents/MADC_Dashboard/MADCDashboard_interact/"
+} else if (ENV == "local" && DEV == "docker") {
+  # Local development on Docker container
+  path_to_app <- "/Box/Documents/MADC_Dashboard/MADCDashboard_interact/"
 }
-source(paste0(path_to_app, "config_new.R"), local = TRUE)
+source(paste0(path_to_app, "config.R"), local = TRUE)
 source(paste0(path_to_app, "helpers.R"), local = TRUE)
 
 
+
 # GET DATA ----
+if (ENV == "local") { cat(cyan("Retrieving data via REDCap API\n")) }
 
 # _ Define Data Fields / Forms ----
+if (ENV == "local") { cat(cyan("  - Defining data fields and forms\n")) }
 
-# __ UDS 3 ----
+# _ _ UDS 3 ----
+if (ENV == "local") { cat(cyan("    * UM-MAP\n")) }
 
 # Header data
 fields_u3_hd_raw <-
@@ -160,10 +187,14 @@ fields_u3 <- c(fields_u3_hd_raw
                , fields_u3_d1_raw
                , fields_u3_d2_raw
                , fields_u3_m1_raw) %>% paste(collapse = ",")
-rm(fields_u3_hd_raw); rm(fields_u3_a1_raw); rm(fields_u3_d1_raw)
-rm(fields_u3_d2_raw); rm(fields_u3_m1_raw)
+rm(fields_u3_hd_raw)
+rm(fields_u3_a1_raw)
+rm(fields_u3_d1_raw)
+rm(fields_u3_d2_raw)
+rm(fields_u3_m1_raw)
 
-# __ MiNDSet Registry ----
+# _ _ MiNDSet Registry ----
+if (ENV == "local") { cat(cyan("    * MiNDSet Registry\n")) }
 
 # Header data
 fields_ms_head_raw <- 
@@ -201,8 +232,10 @@ fields_ms <- c(fields_ms_head_raw,
                fields_ms_dem_raw,
                fields_ms_res_raw,
                fields_ms_time_raw) %>% paste(collapse = ",")
-rm(fields_ms_head_raw); rm(fields_ms_dem_raw)
-rm(fields_ms_res_raw); rm(fields_ms_time_raw)
+rm(fields_ms_head_raw)
+rm(fields_ms_dem_raw)
+rm(fields_ms_res_raw)
+rm(fields_ms_time_raw)
 
 fields_ms_blood_raw <- 
   c(
@@ -218,9 +251,13 @@ fields_ms_saliva_raw <-
   )
 fields_ms_saliva <- fields_ms_saliva_raw %>% paste(collapse = ",")
 
-# __ UDS 3
 
-# Retrieve JSON object ----
+# _ Retrieve JSON ----
+if (ENV == "local") { cat(cyan("  - Retrieving JSON\n")) }
+
+# _ _ UDS 3 ----
+if (ENV == "local") cat(cyan("    * UM-MAP\n"))
+
 json_u3 <- 
   RCurl::postForm(
     uri     = REDCAP_API_URI,
@@ -242,10 +279,9 @@ json_u3 <-
 # Convert JSON to tibble; convert "" values to NA
 df_u3 <- jsonlite::fromJSON(json_u3) %>% as_tibble() %>%  na_if("")
 
+# _ _ MiNDSet Registry ----
+if (ENV == "local") cat(cyan("    * MiNDSet Registry\n"))
 
-# __ MiNDSet Registry ----
-
-# Retrieve JSON object
 json_ms <- 
   RCurl::postForm(
     uri     = REDCAP_API_URI,
@@ -268,7 +304,6 @@ json_ms <-
 # Convert JSON to tibble; convert "" values to NA
 df_ms <- jsonlite::fromJSON(json_ms) %>% as_tibble() %>% na_if("")
 
-# Retrieve JSON object
 json_ms_blood <-
   RCurl::postForm(
     uri     = REDCAP_API_URI,
@@ -291,7 +326,6 @@ json_ms_blood <-
 # Convert JSON to tibble; convert "" values to NA
 df_ms_blood <- jsonlite::fromJSON(json_ms_blood) %>% as_tibble() %>% na_if("")
 
-# Retrieve JSON object
 json_ms_saliva <-
   RCurl::postForm(
     uri     = REDCAP_API_URI,
@@ -316,10 +350,14 @@ df_ms_saliva <- jsonlite::fromJSON(json_ms_saliva) %>% as_tibble() %>% na_if("")
 
 
 # PROCESS DATA ----
+if (ENV == "local") cat(cyan("Processing data\n"))
+
 
 # _ Clean Data ----
+if (ENV == "local") cat(cyan("  - Cleaning data\n"))
 
-# __ UDS 3 ----
+# _ _ UDS 3 ----
+if (ENV == "local") cat(cyan("    * UM-MAP\n"))
 
 # Split off useful milestone data
 df_u3_mlstn <- 
@@ -361,7 +399,8 @@ df_u3 <- df_u3 %>%
                      form_date = col_date())
   )
 
-# __ MiNDSet Registry ----
+# _ _ MiNDSet Registry ----
+if (ENV == "local") cat(cyan("    * MiNDSet Registry\n"))
 
 df_ms <- df_ms %>% 
   # deselect useless field(s)
@@ -399,9 +438,14 @@ df_ms_saliva <- df_ms_saliva %>%
   # keep only distinct / non-duplicate rows
   distinct(subject_id, sample_given, .keep_all = TRUE)
 
+
 # _ Mutate Data ----
 
-# __ UDS 3 ----
+if (ENV == "local") cat(cyan("  - Applying mutates\n"))
+
+# _ _ UDS 3 ----
+
+if (ENV == "local") cat(cyan("    * UM-MAP\n"))
 
 df_u3 <- df_u3 %>% 
   # coalesce IVP / FVP / TVP columns
@@ -566,18 +610,18 @@ df_u3 <- df_u3 %>%
     -meds,     -medsif
   ) %>%
   # coerce fields to particular data types
-  readr::type_convert(
-    col_types = readr::cols(.default        = readr::col_integer(),
-                            ptid            = readr::col_character(),
-                            form_date       = readr::col_date(),
-                            madc_dx         = readr::col_character(),
-                            uds_dx_der      = readr::col_character(),
-                            uds_prim_etio   = readr::col_character(),
-                            uds_condition   = readr::col_character(),
-                            sex             = readr::col_character(),
-                            race            = readr::col_character(),
-                            hispanic        = readr::col_character(),
-                            note_mlstn_type = readr::col_character())) %>% 
+  type_convert(
+    col_types = cols(.default        = col_integer(),
+                     ptid            = col_character(),
+                     form_date       = col_date(),
+                     madc_dx         = col_character(),
+                     uds_dx_der      = col_character(),
+                     uds_prim_etio   = col_character(),
+                     uds_condition   = col_character(),
+                     sex             = col_character(),
+                     race            = col_character(),
+                     hispanic        = col_character(),
+                     note_mlstn_type = col_character())) %>% 
   # ensure 0 or 1 integers fills conditions fields
   mutate_at(vars(cancer:hyposom),
             function(x) {
@@ -595,13 +639,13 @@ df_u3 <- df_u3 %>%
   # # drop `note_mlstn_type`, `deceased`, `discont`, `protocol`
   # select(-note_mlstn_type, -deceased, -discont, -protocol) 
   # drop `note_mlstn_type`, `deceased`, `discont`
-  select(-note_mlstn_type, -deceased, -discont)
+  select(-note_mlstn_type, -deceased, -discont) 
 
 # Add concatenated comorbid conditions fields
 df_u3 <- df_u3 %>% 
   # place field name in each comorbid cond field where there's a 1, else NA
-  mutate_at(.vars = vars(cancer:hyposom),
-            .funs = function(x) {
+  mutate_at(vars(cancer:hyposom),
+            function(x) {
               x_name <- as_string(ensym(x))
               case_when(
                 x == 1L ~ x_name,
@@ -614,31 +658,24 @@ df_u3 <- df_u3 %>%
                            pattern = regex("_NA|NA_|NA|__", ignore_case = FALSE),
                            replacement = ""))
 
-
-# __ MiNDSet Registry ----
+# _ _ MiNDSet Registry ----
+if (ENV == "local") cat(cyan("    * MiNDSet Registry\n"))
 
 df_ms <- df_ms %>% 
   # coerce fields to particular data types
-  readr::type_convert(
-    col_types = readr::cols(.default         = readr::col_character(),
-                            exam_date        = readr::col_date(),
-                            scored           = readr::col_date(),
-                            dbl_scored       = readr::col_date(),
-                            consensus_date   = readr::col_date(),
-                            second_consensus = readr::col_date(),
-                            fb_date          = readr::col_date())
+  type_convert(
+    col_types = cols(.default         = col_character(),
+                     exam_date        = col_date(),
+                     scored           = col_date(),
+                     dbl_scored       = col_date(),
+                     consensus_date   = col_date(),
+                     second_consensus = col_date(),
+                     fb_date          = col_date())
   ) %>% 
   # Propagate values for `race`
   propagate_value(subject_id, exam_date, race) %>% #
   # clean up messy labelled fields
   mutate(zip_code = str_sub(zip_code, 1, 5),
-         # blood_drawn = str_replace(blood_drawn, "\\d{1,}\\. ", ""),
-         # sample_given = str_replace(sample_given, "\\d{1,} ", ""),
-         # comp_withd = case_when(
-         #   comp_withd == "Y" ~ "Yes",
-         #   comp_withd == "N" ~ "No",
-         #   TRUE ~ NA_character_
-         # ),
          mri_completed = str_replace(mri_completed, "\\d{1,}\\. ", "")) %>% 
   # add duration columns
   mutate(dur_exam_scrd =        # days duration: exam -> scored
@@ -663,7 +700,10 @@ df_ms <-
             y = df_ms_saliva,
             by = "subject_id")
 
+
 # _ Join Data ----
+if (ENV == "local") cat(cyan("  - Joining UM-MAP and MiNDSet Registry\n"))
+
 df_u3_ms <- left_join(x = df_u3, 
                       y = df_ms, 
                       by = c("ptid" = "subject_id", 
@@ -671,48 +711,42 @@ df_u3_ms <- left_join(x = df_u3,
 
 
 # _ Hash `ptid` field ----
+if (ENV == "local") cat(cyan("  - Hashing IDs\n"))
+
 df_u3_ms <- df_u3_ms %>% 
   mutate(ptid = openssl::sha256(ptid))
 
-# _ Rename some fields to natural English ----
+
+# _ Rename select fields ----
+if (ENV == "local") cat(cyan("  - Renaming select fields\n"))
+
 df_u3_ms <- df_u3_ms %>% 
-  rename(`Visit Num`       = visit_num
-         , `Sex`           = sex
-         , `MADC Dx`       = madc_dx
-         , `UDS Dx`        = uds_dx_der
-         , `UDS Primary Etiology` = uds_prim_etio
-         , `UDS Condition` = uds_condition
-         , `Milestoned`    = milestone
-         , `County`        = county
-         , `ZIP Code`      = zip_code
-         , `Race`          = race
-         , `Hispanic`      = hispanic
-         , `Blood Drawn`   = blood_drawn
-         , `Saliva Given`  = sample_given
-         , `MRI Completed` = mri_completed
-         , `Autopsy Consented` = consent_to_autopsy)
+  rename(
+    `Visit Date`      = form_date
+    , `Visit Num`     = visit_num
+    , `Sex`           = sex
+    , `MADC Dx`       = madc_dx
+    , `UDS Dx`        = uds_dx_der
+    , `UDS Primary Etiology` = uds_prim_etio
+    , `UDS Condition` = uds_condition
+    , `Milestoned`    = milestone
+    , `County`        = county
+    , `ZIP Code`      = zip_code
+    , `Race`          = race
+    , `Hispanic`      = hispanic
+    , `Blood Drawn`   = blood_drawn
+    , `Saliva Given`  = sample_given
+    , `MRI Completed` = mri_completed
+    , `Autopsy Consent` = consent_to_autopsy
+  )
 
 
-# _ Write Data ----
+# WRITE DATA ----
+if (ENV == "local") cat(cyan("Writing data to Rds\n"))
+
 saveRDS(df_u3_ms, paste0(path_to_app, "rds/df_u3_ms.Rds"))
 
-# _ Remove objects
-# rm(df_ms)
-# rm(df_u3)
-# rm(df_u3_ms)
-rm(BOX_CLIENT_ID)
-rm(BOX_CLIENT_SECRET)
-rm(BOX_REDIRECT_URI)
-# rm(df_u3_mlst)
-# rm(json_ms)
-# rm(json_u3)
-# rm(path_to_app)
-# rm(REDCAP_API_TOKEN_MINDSET)
-rm(REDCAP_API_TOKEN_UDS2)
-# rm(REDCAP_API_TOKEN_UDS3a)
-# rm(REDCAP_API_TOKEN_UDS3n)
-# rm(REDCAP_API_URI)
-rm(REDCAP_DATA_REQUESTS_TOKEN)
+invisible( gc() )
 
 
 ###@    #==--  :  --==#    @##==---==##@##==---==##@    #==--  :  --==#    @###

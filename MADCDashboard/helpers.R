@@ -1,9 +1,9 @@
 # helpers.R
 
-library(dplyr)
-library(stringr)
-library(lubridate)
-library(rlang)
+suppressMessages( library(dplyr) )
+suppressMessages( library(stringr) )
+suppressMessages( library(lubridate) )
+suppressMessages( library(rlang) )
 
 # Useful helper functions used throughout MADC database specialist work
 
@@ -34,62 +34,23 @@ rc_api_get <- function(uri     = REDCAP_API_URI,
 }
 
 # Helper function
-#' ## Collapse IVP / FVP / TVP fields based on IVP base name
-#' ## Uses rlang non-standard evalution
-#' ### 
-#' #' Example use in loop:
-#' #' # Copy the data frame with collapsible fields
-#' #' df_copy <- df
-#' #' 
-#' #' # Define which fields have "fu_" and "tele_" counterparts
-#' #' collapsible_fields <- c("sex", "maristat")
-#' #' 
-#' #' # Loop over each collapsible field, and do the collapsing
-#' #' # NOTICE USE OF QUASIQUOTATION !! IN 2nd FUNCTION ARGUMENT 
-#' #' for (field in collapsible_fields) {
-#' #'   df_copy <- collapse_ift_cols(df_copy, !!field) # <= NOTICE !!
-#' #' }
-#' #'
-#' ###
-#' collapse_ift_cols <- function(df, col_i) {
-#'   col_i_enquo <- enquo(col_i) # col : expr => quosure
-#'   
-#'   col_i_quoname <- quo_name(col_i_enquo)          # col_i : quosure => string
-#'   col_f_quoname <- paste0("fu_", col_i_quoname)   # col_f : string => string
-#'   col_t_quoname <- paste0("tele_", col_i_quoname) # col_t : string => string
-#'   
-#'   col_f_enquo <- enquo(col_f_quoname) # col_f : string => quosure
-#'   col_t_enquo <- enquo(col_t_quoname) # col_t : string => quosure
-#'   
-#'   # IVP, FVP (fu_), and TVP (tele_) columns are in df
-#'   if (!is.null(df[[col_i_quoname]]) &
-#'       !is.null(df[[col_f_quoname]]) &
-#'       !is.null(df[[col_t_quoname]])) {
-#'     df %>%
-#'       mutate(!!col_i_enquo := coalesce(df[[col_i_quoname]],
-#'                                        df[[col_f_quoname]],
-#'                                        df[[col_t_quoname]])) %>%
-#'       select(-!!col_f_enquo, -!!col_t_enquo)
-#'   } 
-#'   # IVP and FVP (fu_) columns are in df
-#'   else if (!is.null(df[[col_i_quoname]]) &
-#'            !is.null(df[[col_f_quoname]]) &
-#'            is.null(df[[col_t_quoname]])) {
-#'     df %>%
-#'       mutate(!!col_i_enquo := coalesce(df[[col_i_quoname]],
-#'                                        df[[col_f_quoname]])) %>%
-#'       select(-!!col_f_enquo)
-#'   } 
-#'   # IVP and TVP (tele_) columns are in df
-#'   else if (!is.null(df[[col_i_quoname]]) &
-#'            is.null(df[[col_f_quoname]]) &
-#'            !is.null(df[[col_t_quoname]])) {
-#'     df %>%
-#'       mutate(!!col_i_enquo := coalesce(df[[col_i_quoname]],
-#'                                        df[[col_t_quoname]])) %>%
-#'       select(-!!col_t_enquo)
-#'   }
+## Collapse IVP / FVP / TVP fields based on IVP base name
+## Uses rlang non-standard evalution
+###
+#' Example use in loop:
+#' # Copy the data frame with collapsible fields
+#' df_copy <- df
+#'
+#' # Define which fields have "fu_" and "tele_" counterparts
+#' collapsible_fields <- c("sex", "maristat")
+#'
+#' # Loop over each collapsible field, and do the collapsing
+#' # NOTICE USE OF QUASIQUOTATION !! IN 2nd FUNCTION ARGUMENT
+#' for (field in collapsible_fields) {
+#'   df_copy <- collapse_ift_cols(df_copy, !!field) # <= NOTICE !!
 #' }
+#'
+###
 coalesce_ift_cols <- function(df) {
   
   # Get collapsible fields and the correpsonding
@@ -276,7 +237,11 @@ calculate_visit_num <- function(df, id_field, date_field) {
 # n is the visit number
 # Use n = -Inf for the earliest visit
 # Use n = Inf for the latest visit
-get_visit_n <- function(df, id_field, date_field, n) {
+get_visit_n <- function(df, id_field, date_field, n = NULL) {
+  
+  # If n is null, return the df as is
+  if (is.null(n)) return(df)
+  
   # Capture what user passed as `id_field` and `date_field`
   enquo_id_field <- enquo(id_field)
   enquo_date_field <- enquo(date_field)

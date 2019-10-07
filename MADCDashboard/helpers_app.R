@@ -2,10 +2,13 @@
 
 # Helper functions for building UDS report summary table
 
-DT_OPTIONS <- list(paging    = FALSE,
-                   searching = FALSE,
-                   ordering  = FALSE,
-                   info      = FALSE)
+# Load Libraries ----
+
+suppressMessages( library(dplyr) )
+suppressMessages( library(rlang) )
+suppressMessages( library(purrr) )
+suppressMessages( library(DT) )
+
 
 # Helper Functions ----
 
@@ -23,6 +26,9 @@ summarize_timeline <- function(df, timeline_field) {
       Q3     = round(quantile(!!timeline_field, probs = 0.75, na.rm = TRUE), 2),
       Max    = max(!!timeline_field, na.rm = TRUE)
     ) %>% 
-    datatable(options = DT_OPTIONS,
+    datatable(options = list(paging    = FALSE,
+                             searching = FALSE,
+                             ordering  = FALSE,
+                             info      = FALSE),
               rownames  = FALSE)
 }

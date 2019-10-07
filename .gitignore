@@ -14,3 +14,4 @@ interactive_data_vis_web_r.R
 sketch*
 *.sh
 config*
+*.out
