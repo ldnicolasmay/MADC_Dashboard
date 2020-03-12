@@ -18,8 +18,8 @@ summarize_timeline <- function(df, timeline_field) {
   df %>% 
     summarize(
       N = n(), 
-      # Mean   = round(mean(!!timeline_field), 2), 
-      # SD     = round(sd(!!timeline_field), 2), 
+      Mean   = round(mean(!!timeline_field, na.rm = TRUE), 2),
+      SD     = round(sd(!!timeline_field, na.rm = TRUE), 2),
       Min    = min(!!timeline_field, na.rm = TRUE), 
       Q1     = round(quantile(!!timeline_field, probs = 0.25, na.rm = TRUE), 2),
       Median = round(median(!!timeline_field, na.rm = TRUE), 2),
